@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  company      String?
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  invoices     Invoice[]
+  decisions    Decision[]
+  settings     UserSettings?
+}
+
+model Rate {
+  id            String   @id @default(cuid())
+  asOf          DateTime @unique
+  name          String
+  annualRatePct Float
+  deltaBpsDay   Int
+  createdAt     DateTime @default(now())
+}
+
+model Invoice {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  vendor           String
+  invoiceNumber    String
+  amount           Decimal  @db.Decimal(14,2)
+  currency         String   @default("USD")
+  invoiceDate      DateTime
+  dueDate          DateTime
+  terms            String
+  discountDeadline DateTime?
+  impliedAprPct    Float
+  recommendation   Recommendation
+  reason           String
+  status           InvoiceStatus @default(PENDING)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Decision {
+  id               String      @id @default(cuid())
+  timestamp        DateTime    @default(now())
+  userId           String
+  user             User        @relation(fields: [userId], references: [id])
+  invoiceIds       String[]    // store IDs array
+  action           DecisionAction
+  benchmarkPct     Float
+  impliedAprPct    Float
+  estimatedSavings Decimal     @db.Decimal(14,2)
+  note             String?
+}
+
+model UserSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id])
+  
+  // Financial Settings
+  safetyBuffer          Int      @default(50) // basis points
+  defaultCurrency       String   @default("USD")
+  
+  // Notification Settings
+  emailSummary          Boolean  @default(true)
+  urgentDeadlineAlerts  Boolean  @default(true)
+  rateChangeAlerts      Boolean  @default(true)
+  
+  // Security Settings
+  twoFactorEnabled      Boolean  @default(false)
+  sessionTimeout        Int      @default(30) // minutes
+  
+  // Organization Settings
+  organizationName      String?
+  organizationDomain    String?
+  organizationSize      String?   // small, medium, large, enterprise
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+enum Recommendation {
+  TAKE
+  HOLD
+}
+
+enum InvoiceStatus {
+  PENDING
+  APPROVED_TAKE
+  APPROVED_HOLD
+  DISMISSED
+}
+
+enum DecisionAction {
+  APPROVE_TAKE
+  APPROVE_HOLD
+  DISMISS
+}

@@ -12,11 +12,13 @@ import { Label } from "@/components/ui/label";
 import { SignUpSchema, type SignUpData } from "@/lib/types";
 import { copy } from "@/lib/i18n";
 import { Calculator, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function SignUpPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  const { register: registerUser } = useAuth();
 
   const {
     register,
@@ -29,8 +31,7 @@ export default function SignUpPage() {
   const onSubmit = async (data: SignUpData) => {
     setIsLoading(true);
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await registerUser(data.name, data.email, data.password, data.company);
       router.push("/app/dashboard");
     } catch (error) {
       console.error("Sign up error:", error);

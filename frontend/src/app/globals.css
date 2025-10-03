@@ -56,3 +56,56 @@
     color: hsl(var(--foreground));
   }
 }
+
+@layer components {
+  /* Custom button styles to override default white buttons */
+  .btn-outline-blue {
+    border-color: #2563eb !important;
+    color: #2563eb !important;
+    background-color: transparent !important;
+  }
+  
+  .btn-outline-blue:hover {
+    background-color: #eff6ff !important;
+    color: #1d4ed8 !important;
+  }
+  
+  .btn-outline-gray {
+    border-color: #4b5563 !important;
+    color: #4b5563 !important;
+    background-color: transparent !important;
+  }
+  
+  .btn-outline-gray:hover {
+    background-color: #f9fafb !important;
+    color: #374151 !important;
+  }
+  
+  .btn-ghost-blue {
+    color: #2563eb !important;
+    background-color: transparent !important;
+  }
+  
+  .btn-ghost-blue:hover {
+    background-color: #eff6ff !important;
+    color: #1d4ed8 !important;
+  }
+  
+  .btn-solid-red {
+    background-color: #dc2626 !important;
+    color: white !important;
+  }
+  
+  .btn-solid-red:hover {
+    background-color: #b91c1c !important;
+  }
+  
+  .btn-solid-blue {
+    background-color: #2563eb !important;
+    color: white !important;
+  }
+  
+  .btn-solid-blue:hover {
+    background-color: #1d4ed8 !important;
+  }
+}

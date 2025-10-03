@@ -23,7 +23,9 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useTodayRate } from "@/hooks/use-api";
+import { useAuth } from "@/contexts/auth-context";
 import ChatbotDrawer from "@/components/chatbot-drawer";
+import ProtectedRoute from "@/components/protected-route";
 
 export default function AppLayout({
   children,
@@ -34,6 +36,7 @@ export default function AppLayout({
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
   const { data: rateData, isLoading: rateLoading } = useTodayRate();
 
   const navigationItems = [
@@ -45,7 +48,8 @@ export default function AppLayout({
   ];
 
   return (
-    <div className="min-h-screen bg-background">
+    <ProtectedRoute>
+      <div className="min-h-screen bg-background">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -100,8 +104,8 @@ export default function AppLayout({
                 <User className="h-4 w-4 text-primary-foreground" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">Demo User</div>
-                <div className="text-xs text-muted-foreground truncate">demo@example.com</div>
+                <div className="text-sm font-medium truncate">{user?.name || 'User'}</div>
+                <div className="text-xs text-muted-foreground truncate">{user?.email || 'user@example.com'}</div>
               </div>
             </div>
           </div>
@@ -171,10 +175,10 @@ export default function AppLayout({
 
               {/* User menu */}
               <div className="flex items-center space-x-2">
-                <Button variant="ghost" size="sm">
+                <Button variant="ghost" size="sm" onClick={logout}>
                   <User className="h-4 w-4 mr-2" />
-                  Demo User
-                  <ChevronDown className="h-4 w-4 ml-2" />
+                  {user?.name || 'User'}
+                  <LogOut className="h-4 w-4 ml-2" />
                 </Button>
               </div>
             </div>
@@ -192,6 +196,7 @@ export default function AppLayout({
         isOpen={chatbotOpen} 
         onClose={() => setChatbotOpen(false)} 
       />
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 }

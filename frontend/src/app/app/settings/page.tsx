@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import { copy } from "@/lib/i18n";
+import { useSettings, useUpdateSettings, useUpdateProfile, useChangePassword } from "@/hooks/use-api";
+import { useAuth } from "@/contexts/auth-context";
 
 const ProfileSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -39,49 +41,62 @@ type PreferencesData = z.infer<typeof PreferencesSchema>;
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "organization" | "preferences">("profile");
-  const [isLoading, setIsLoading] = useState(false);
+  const { user } = useAuth();
+  
+  // API hooks
+  const { data: settings, isLoading: settingsLoading } = useSettings();
+  const updateSettingsMutation = useUpdateSettings();
+  const updateProfileMutation = useUpdateProfile();
+  const changePasswordMutation = useChangePassword();
 
   const profileForm = useForm<ProfileData>({
     resolver: zodResolver(ProfileSchema),
     defaultValues: {
-      name: "Demo User",
-      email: "demo@example.com",
-      company: "Acme Corp",
+      name: user?.name || "",
+      email: user?.email || "",
+      company: user?.company || "",
     },
   });
 
   const preferencesForm = useForm<PreferencesData>({
     resolver: zodResolver(PreferencesSchema),
     defaultValues: {
-      safetyBuffer: 50,
-      emailSummary: true,
-      currency: "USD",
+      safetyBuffer: settings?.safetyBuffer || 50,
+      emailSummary: settings?.emailSummary || true,
+      currency: settings?.defaultCurrency || "USD",
     },
   });
 
+  // Update form values when settings data loads
+  useEffect(() => {
+    if (settings) {
+      preferencesForm.reset({
+        safetyBuffer: settings.safetyBuffer,
+        emailSummary: settings.emailSummary,
+        currency: settings.defaultCurrency,
+      });
+    }
+  }, [settings, preferencesForm]);
+
   const onProfileSubmit = async (data: ProfileData) => {
-    setIsLoading(true);
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updateProfileMutation.mutateAsync(data);
       console.log("Profile updated:", data);
     } catch (error) {
       console.error("Profile update error:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const onPreferencesSubmit = async (data: PreferencesData) => {
-    setIsLoading(true);
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await updateSettingsMutation.mutateAsync({
+        safetyBuffer: data.safetyBuffer,
+        defaultCurrency: data.currency,
+        emailSummary: data.emailSummary,
+      });
       console.log("Preferences updated:", data);
     } catch (error) {
       console.error("Preferences update error:", error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -221,9 +236,9 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={updateProfileMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
-                    {isLoading ? "Saving..." : "Save Changes"}
+                    {updateProfileMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
                 </form>
               </CardContent>
@@ -316,9 +331,9 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <Button disabled={isLoading}>
+                  <Button disabled={updateSettingsMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
-                    {isLoading ? "Saving..." : "Save Changes"}
+                    {updateSettingsMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
                 </div>
               </CardContent>
@@ -424,9 +439,9 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <Button type="submit" disabled={isLoading}>
+                  <Button type="submit" disabled={updateSettingsMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
-                    {isLoading ? "Saving..." : "Save Preferences"}
+                    {updateSettingsMutation.isPending ? "Saving..." : "Save Preferences"}
                   </Button>
                 </form>
               </CardContent>

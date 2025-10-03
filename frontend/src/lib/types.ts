@@ -21,6 +21,35 @@ export type SignInData = z.infer<typeof SignInSchema>
 export type SignUpData = z.infer<typeof SignUpSchema>
 export type MagicLinkData = z.infer<typeof MagicLinkSchema>
 
+// Settings types
+export interface UserSettings {
+  id: string
+  userId: string
+  safetyBuffer: number
+  defaultCurrency: string
+  emailSummary: boolean
+  urgentDeadlineAlerts: boolean
+  rateChangeAlerts: boolean
+  twoFactorEnabled: boolean
+  sessionTimeout: number
+  organizationName?: string
+  organizationDomain?: string
+  organizationSize?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProfileData {
+  name: string
+  email: string
+  company?: string
+}
+
+export interface PasswordChangeData {
+  currentPassword: string
+  newPassword: string
+}
+
 // Rate types
 export interface Rate {
   asOf: string
@@ -41,7 +70,7 @@ export interface Invoice {
   invoiceDate: string
   dueDate: string
   terms: string
-  discountDeadline: string
+  discountDeadline: string | null
   impliedAprPct: number
   recommendation: "TAKE" | "HOLD"
   reason: string
@@ -72,6 +101,11 @@ export interface AuditItem {
   timestamp: string
   user: string
   invoiceIds: string[]
+  invoices: Array<{
+    id: string
+    invoiceNumber: string
+    vendor: string
+  }>
   action: "APPROVE_TAKE" | "APPROVE_HOLD"
   benchmarkPct: number
   impliedAprPct: number

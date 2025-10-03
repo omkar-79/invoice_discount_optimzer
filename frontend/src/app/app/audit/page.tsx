@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,8 @@ import {
   User,
   DollarSign,
   ArrowUpDown,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import { useAuditItems } from "@/hooks/use-api";
 import { formatCurrency, formatPercentage, formatDateTime } from "@/lib/utils";
@@ -40,23 +41,81 @@ export default function AuditPage() {
 
   const auditItems = auditData?.items || [];
 
-  const filteredItems = [...auditItems].sort((a, b) => {
-    let comparison = 0;
-    
-    switch (sortBy) {
-      case "timestamp":
-        comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
-        break;
-      case "user":
-        comparison = a.user.localeCompare(b.user);
-        break;
-      case "savings":
-        comparison = a.estimatedSavings - b.estimatedSavings;
-        break;
+  // Enhanced filtering with search functionality
+  const filteredItems = useMemo(() => {
+    let filtered = [...auditItems];
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(item => 
+        item.user.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.invoices.some(inv => 
+          inv.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          inv.vendor.toLowerCase().includes(searchTerm.toLowerCase())
+        ) ||
+        item.note?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.action.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     }
+
+    // Sort
+    filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case "timestamp":
+          comparison = new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+          break;
+        case "user":
+          comparison = a.user.localeCompare(b.user);
+          break;
+        case "savings":
+          comparison = a.estimatedSavings - b.estimatedSavings;
+          break;
+      }
+      
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+
+    return filtered;
+  }, [auditItems, searchTerm, sortBy, sortOrder]);
+
+  // Export functionality
+  const exportToCSV = () => {
+    const headers = [
+      'Timestamp',
+      'User', 
+      'Invoice IDs',
+      'Action',
+      'Benchmark Rate (%)',
+      'Implied APR (%)',
+      'Estimated Savings ($)',
+      'Note'
+    ];
     
-    return sortOrder === "asc" ? comparison : -comparison;
-  });
+    const csvData = filteredItems.map(item => [
+      item.timestamp,
+      item.user,
+      item.invoices.map(inv => inv.invoiceNumber).join(';'),
+      item.action,
+      item.benchmarkPct.toFixed(2),
+      item.impliedAprPct.toFixed(2),
+      item.estimatedSavings.toFixed(2),
+      item.note || ''
+    ]);
+    
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `audit-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   const getActionColor = (action: string) => {
     switch (action) {
@@ -82,6 +141,9 @@ export default function AuditPage() {
 
   const totalSavings = auditItems.reduce((sum, item) => sum + item.estimatedSavings, 0);
   const totalDecisions = auditItems.length;
+  const takeDecisions = auditItems.filter(item => item.action === 'APPROVE_TAKE').length;
+  const holdDecisions = auditItems.filter(item => item.action === 'APPROVE_HOLD').length;
+  const avgSavingsPerDecision = totalDecisions > 0 ? totalSavings / totalDecisions : 0;
 
   if (isLoading) {
     return (
@@ -110,15 +172,15 @@ export default function AuditPage() {
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <Button variant="outline">
+          <Button variant="outline" onClick={exportToCSV} disabled={filteredItems.length === 0}>
             <Download className="h-4 w-4 mr-2" />
-            Export
+            Export CSV
           </Button>
         </div>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Decisions</CardTitle>
@@ -126,6 +188,15 @@ export default function AuditPage() {
           <CardContent>
             <div className="text-2xl font-bold">{totalDecisions}</div>
             <p className="text-xs text-muted-foreground">All time</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Take Discounts</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-emerald-600">{takeDecisions}</div>
+            <p className="text-xs text-muted-foreground">Approved for discount</p>
           </CardContent>
         </Card>
         <Card>
@@ -139,13 +210,13 @@ export default function AuditPage() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Savings per Decision</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Avg Savings</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {totalDecisions > 0 ? formatCurrency(totalSavings / totalDecisions) : "$0"}
+              {formatCurrency(avgSavingsPerDecision)}
             </div>
-            <p className="text-xs text-muted-foreground">Per approval</p>
+            <p className="text-xs text-muted-foreground">Per decision</p>
           </CardContent>
         </Card>
       </div>
@@ -255,11 +326,26 @@ export default function AuditPage() {
         <CardContent className="p-0">
           {filteredItems.length === 0 ? (
             <div className="text-center py-12">
-              <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-medium mb-2">No audit entries found</h3>
-              <p className="text-muted-foreground">
-                Try adjusting your filters or approve some invoices to see your history.
-              </p>
+              {auditItems.length === 0 ? (
+                <>
+                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No audit entries yet</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Start by approving some invoices to see your decision history here.
+                  </p>
+                  <Button onClick={() => window.location.href = '/app/invoices'}>
+                    Go to Invoices
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-medium mb-2">No results found</h3>
+                  <p className="text-muted-foreground">
+                    Try adjusting your search terms or filters to find what you're looking for.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -290,11 +376,11 @@ export default function AuditPage() {
                       </td>
                       <td className="p-4">
                         <div className="text-sm">
-                          {item.invoiceIds.length} invoice{item.invoiceIds.length !== 1 ? 's' : ''}
+                          {item.invoices.length} invoice{item.invoices.length !== 1 ? 's' : ''}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {item.invoiceIds.slice(0, 2).join(', ')}
-                          {item.invoiceIds.length > 2 && ` +${item.invoiceIds.length - 2} more`}
+                          {item.invoices.slice(0, 2).map(inv => inv.invoiceNumber).join(', ')}
+                          {item.invoices.length > 2 && ` +${item.invoices.length - 2} more`}
                         </div>
                       </td>
                       <td className="p-4 text-center">
@@ -345,8 +431,8 @@ export default function AuditPage() {
       {/* Detail Modal */}
       {selectedItem && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <CardHeader>
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 border shadow-lg">
+            <CardHeader className="bg-white dark:bg-gray-900">
               <div className="flex items-center justify-between">
                 <CardTitle>Audit Entry Details</CardTitle>
                 <Button
@@ -358,21 +444,21 @@ export default function AuditPage() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="bg-white dark:bg-gray-900">
               {(() => {
                 const item = auditItems.find(entry => entry.id === selectedItem);
                 if (!item) return null;
                 
                 return (
-                  <div className="space-y-6">
+                  <div className="space-y-6 text-gray-900 dark:text-gray-100">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Timestamp</label>
-                        <p className="text-lg font-medium">{formatDateTime(item.timestamp)}</p>
+                        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">{formatDateTime(item.timestamp)}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">User</label>
-                        <p className="text-lg font-medium">{item.user}</p>
+                        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">{item.user}</p>
                       </div>
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Action</label>
@@ -392,35 +478,39 @@ export default function AuditPage() {
                     </div>
 
                     <div className="border-t pt-6">
-                      <h3 className="font-medium mb-4">Invoice Details</h3>
+                      <h3 className="font-medium mb-4 text-gray-900 dark:text-gray-100">Invoice Details</h3>
                       <div className="space-y-2">
                         <div className="flex justify-between">
-                          <span>Invoice IDs:</span>
-                          <span className="font-mono text-sm">{item.invoiceIds.join(', ')}</span>
+                          <span className="text-gray-700 dark:text-gray-300">Invoice Numbers:</span>
+                          <span className="font-mono text-sm text-gray-900 dark:text-gray-100">{item.invoices.map(inv => inv.invoiceNumber).join(', ')}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Benchmark Rate:</span>
-                          <span className="font-medium">{formatPercentage(item.benchmarkPct)}</span>
+                          <span className="text-gray-700 dark:text-gray-300">Vendors:</span>
+                          <span className="font-mono text-sm text-gray-900 dark:text-gray-100">{item.invoices.map(inv => inv.vendor).join(', ')}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>Implied APR:</span>
-                          <span className="font-medium">{formatPercentage(item.impliedAprPct)}</span>
+                          <span className="text-gray-700 dark:text-gray-300">Benchmark Rate:</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{formatPercentage(item.benchmarkPct)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-700 dark:text-gray-300">Implied APR:</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{formatPercentage(item.impliedAprPct)}</span>
                         </div>
                       </div>
                     </div>
 
                     {item.note && (
                       <div className="border-t pt-6">
-                        <h3 className="font-medium mb-2">Notes</h3>
-                        <p className="text-sm text-muted-foreground bg-muted p-3 rounded">
+                        <h3 className="font-medium mb-2 text-gray-900 dark:text-gray-100">Notes</h3>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 p-3 rounded">
                           {item.note}
                         </p>
                       </div>
                     )}
 
                     <div className="border-t pt-6">
-                      <h3 className="font-medium mb-4">Raw Data</h3>
-                      <pre className="text-xs bg-muted p-4 rounded overflow-x-auto">
+                      <h3 className="font-medium mb-4 text-gray-900 dark:text-gray-100">Raw Data</h3>
+                      <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-4 rounded overflow-x-auto text-gray-900 dark:text-gray-100">
                         {JSON.stringify(item, null, 2)}
                       </pre>
                     </div>

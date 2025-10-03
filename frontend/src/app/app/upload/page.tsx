@@ -55,7 +55,6 @@ export default function UploadPage() {
 
   const optionalFields = [
     { key: "notes", label: "Notes", description: "Additional information" },
-    { key: "currency", label: "Currency", description: "Currency code (USD, EUR, etc.)" },
   ];
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
@@ -74,6 +73,50 @@ export default function UploadPage() {
     },
     multiple: false,
   });
+
+  // Auto-detect column mappings based on header names
+  const autoDetectMappings = (headers: string[]) => {
+    const mappings: Record<string, string> = {};
+    
+    headers.forEach(header => {
+      const lowerHeader = header.toLowerCase().replace(/[^a-z0-9]/g, '');
+      
+      // Vendor detection
+      if (lowerHeader.includes('vendor') || lowerHeader.includes('company') || 
+          lowerHeader.includes('supplier') || lowerHeader.includes('name')) {
+        mappings[header] = 'vendor';
+      }
+      // Invoice number detection
+      else if (lowerHeader.includes('invoice') && (lowerHeader.includes('number') || lowerHeader.includes('id'))) {
+        mappings[header] = 'invoice_number';
+      }
+      // Amount detection
+      else if (lowerHeader.includes('amount') || lowerHeader.includes('total') || 
+               lowerHeader.includes('value') || lowerHeader.includes('price')) {
+        mappings[header] = 'amount';
+      }
+      // Invoice date detection
+      else if (lowerHeader.includes('invoice') && lowerHeader.includes('date')) {
+        mappings[header] = 'invoice_date';
+      }
+      // Due date detection
+      else if (lowerHeader.includes('due') && lowerHeader.includes('date')) {
+        mappings[header] = 'due_date';
+      }
+      // Terms detection
+      else if (lowerHeader.includes('terms') || lowerHeader.includes('payment') || 
+               lowerHeader.includes('discount')) {
+        mappings[header] = 'terms';
+      }
+      // Notes detection
+      else if (lowerHeader.includes('notes') || lowerHeader.includes('comment') || 
+               lowerHeader.includes('description')) {
+        mappings[header] = 'notes';
+      }
+    });
+    
+    return mappings;
+  };
 
   const parseCSV = (file: File) => {
     const reader = new FileReader();
@@ -98,6 +141,10 @@ export default function UploadPage() {
         required: false,
       }));
       setColumns(detectedColumns);
+      
+      // Auto-detect mappings
+      const autoMappings = autoDetectMappings(headers);
+      setMapping(autoMappings);
       
       setCurrentStep(2);
     };
@@ -176,8 +223,15 @@ export default function UploadPage() {
   };
 
   const handleSubmit = async () => {
+    if (!uploadedFile) {
+      console.error('No file to upload');
+      return;
+    }
+
     try {
-      await importMutation.mutateAsync(new FormData());
+      const formData = new FormData();
+      formData.append('file', uploadedFile);
+      await importMutation.mutateAsync(formData);
       router.push('/app/dashboard');
     } catch (error) {
       console.error('Import error:', error);
@@ -283,67 +337,117 @@ export default function UploadPage() {
         <Card>
           <CardHeader>
             <CardTitle>{copy.upload.step2.title}</CardTitle>
-            <CardDescription>{copy.upload.step2.description}</CardDescription>
+            <CardDescription>
+              {copy.upload.step2.description} We've automatically detected the most likely column mappings below. 
+              You can change them if needed.
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
+              {/* Auto-detection Summary */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <CheckCircle className="h-4 w-4 text-blue-600 mr-2" />
+                  <span className="font-medium text-blue-900">Auto-detection Results</span>
+                </div>
+                <p className="text-sm text-blue-700">
+                  We've automatically mapped {Object.keys(mapping).length} of {columns.length} columns. 
+                  Review the mappings below and adjust if needed.
+                </p>
+              </div>
+
               <div>
                 <h3 className="font-medium mb-3">Required Fields</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {requiredFields.map((field) => (
-                    <div key={field.key} className="space-y-2">
-                      <Label className="flex items-center">
-                        {field.label}
-                        <Badge variant="destructive" className="ml-2 text-xs">
-                          Required
-                        </Badge>
-                      </Label>
-                      <Select
-                        value={Object.keys(mapping).find(h => mapping[h] === field.key) || ''}
-                        onValueChange={(value) => handleMappingChange(value, field.key)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select column" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {columns.map((col) => (
-                            <SelectItem key={col.header} value={col.header}>
-                              {col.header}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">{field.description}</p>
-                    </div>
-                  ))}
+                  {requiredFields.map((field) => {
+                    const mappedHeader = Object.keys(mapping).find(h => mapping[h] === field.key);
+                    const isAutoDetected = mappedHeader && Object.keys(mapping).includes(mappedHeader);
+                    
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <Label className="flex items-center">
+                          {field.label}
+                          <Badge variant="destructive" className="ml-2 text-xs">
+                            Required
+                          </Badge>
+                          {isAutoDetected && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              Auto-detected
+                            </Badge>
+                          )}
+                        </Label>
+                        <Select
+                          value={mappedHeader || ''}
+                          onValueChange={(value) => handleMappingChange(value, field.key)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select column" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {columns.map((col) => (
+                              <SelectItem key={col.header} value={col.header}>
+                                {col.header}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">{field.description}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
                 <h3 className="font-medium mb-3">Optional Fields</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {optionalFields.map((field) => (
-                    <div key={field.key} className="space-y-2">
-                      <Label>{field.label}</Label>
-                      <Select
-                        value={Object.keys(mapping).find(h => mapping[h] === field.key) || ''}
-                        onValueChange={(value) => handleMappingChange(value, field.key)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select column (optional)" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="">None</SelectItem>
-                          {columns.map((col) => (
-                            <SelectItem key={col.header} value={col.header}>
-                              {col.header}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">{field.description}</p>
-                    </div>
-                  ))}
+                  {optionalFields.map((field) => {
+                    const mappedHeader = Object.keys(mapping).find(h => mapping[h] === field.key);
+                    const isAutoDetected = mappedHeader && Object.keys(mapping).includes(mappedHeader);
+                    
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <Label className="flex items-center">
+                          {field.label}
+                          {isAutoDetected && (
+                            <Badge variant="secondary" className="ml-2 text-xs">
+                              Auto-detected
+                            </Badge>
+                          )}
+                        </Label>
+                        <Select
+                          value={mappedHeader || '__none__'}
+                          onValueChange={(value) => {
+                            if (value === '__none__') {
+                              setMapping((prev) => {
+                                const next = { ...prev } as Record<string, string>
+                                const existingHeader = Object.keys(next).find((h) => next[h] === field.key)
+                                if (existingHeader) {
+                                  delete next[existingHeader]
+                                }
+                                return next
+                              })
+                            } else {
+                              handleMappingChange(value, field.key)
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select column (optional)" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">None</SelectItem>
+                            {columns.map((col) => (
+                              <SelectItem key={col.header} value={col.header}>
+                                {col.header}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">{field.description}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>

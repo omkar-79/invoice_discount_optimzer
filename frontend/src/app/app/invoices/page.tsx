@@ -16,10 +16,11 @@ import {
   Clock,
   ArrowUpDown
 } from "lucide-react";
-import { useInvoices } from "@/hooks/use-api";
-import { formatCurrency, formatPercentage, formatDate, calculateDaysUntil, getDeadlineStatus } from "@/lib/utils";
-import { RECOMMENDATION_COLORS, DEADLINE_STATUS } from "@/lib/constants";
+import { useInvoices, useCreateDecision } from "@/hooks/use-api";
+import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
+import { RECOMMENDATION_COLORS } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -30,16 +31,44 @@ export default function InvoicesPage() {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
-  const { data: invoicesData, isLoading } = useInvoices({
-    vendor: searchTerm || undefined,
+  const { user, token } = useAuth();
+  const { data: invoicesData, isLoading, error } = useInvoices({
     status: statusFilter !== "all" ? statusFilter : undefined,
-    recommendation: recommendationFilter !== "all" ? recommendationFilter : undefined,
-    minApr: minAprFilter ? parseFloat(minAprFilter) : undefined,
   });
+  const createDecisionMutation = useCreateDecision();
 
   const invoices = invoicesData?.items || [];
 
-  const filteredInvoices = [...invoices].sort((a, b) => {
+  // Debug logging
+  console.log('InvoicesPage - user:', user);
+  console.log('InvoicesPage - token:', token);
+  console.log('InvoicesPage - invoicesData:', invoicesData);
+  console.log('InvoicesPage - isLoading:', isLoading);
+  console.log('InvoicesPage - error:', error);
+  console.log('InvoicesPage - invoices:', invoices);
+
+  // Apply frontend-side filtering
+  const filteredInvoices = [...invoices]
+    .filter(invoice => {
+      // Vendor search
+      if (searchTerm && !invoice.vendor.toLowerCase().includes(searchTerm.toLowerCase()) && 
+          !invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) {
+        return false;
+      }
+      
+      // Recommendation filter
+      if (recommendationFilter !== "all" && invoice.recommendation !== recommendationFilter) {
+        return false;
+      }
+      
+      // Min APR filter
+      if (minAprFilter && invoice.impliedAprPct < parseFloat(minAprFilter)) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
     let comparison = 0;
     
     switch (sortBy) {
@@ -82,6 +111,43 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleApprove = async () => {
+    if (!selectedInvoice) return;
+    
+    try {
+      const invoice = invoices.find(inv => inv.id === selectedInvoice);
+      if (!invoice) return;
+
+      const action = invoice.recommendation === "TAKE" ? "APPROVE_TAKE" : "APPROVE_HOLD";
+      
+      await createDecisionMutation.mutateAsync({
+        invoiceIds: [selectedInvoice],
+        action: action as any,
+        note: `Approved ${invoice.recommendation} recommendation for ${invoice.vendor}`
+      });
+      
+      setSelectedInvoice(null);
+    } catch (error) {
+      console.error('Failed to approve invoice:', error);
+    }
+  };
+
+  const handleDismiss = async () => {
+    if (!selectedInvoice) return;
+    
+    try {
+      await createDecisionMutation.mutateAsync({
+        invoiceIds: [selectedInvoice],
+        action: "DISMISS" as any,
+        note: `Dismissed invoice from ${invoices.find(inv => inv.id === selectedInvoice)?.vendor}`
+      });
+      
+      setSelectedInvoice(null);
+    } catch (error) {
+      console.error('Failed to dismiss invoice:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -98,6 +164,44 @@ export default function InvoicesPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="text-yellow-500 mb-4">
+            <Clock className="h-12 w-12 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">Authentication Required</h3>
+          <p className="text-muted-foreground mb-4">
+            Please log in to view your invoices.
+          </p>
+          <Button onClick={() => window.location.href = '/auth/sign-in'} className="btn-solid-blue">
+            Sign In
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="text-center py-12">
+          <div className="text-red-500 mb-4">
+            <XCircle className="h-12 w-12 mx-auto" />
+          </div>
+          <h3 className="text-lg font-medium mb-2">Error loading invoices</h3>
+          <p className="text-muted-foreground mb-4">
+            {error.message || 'Failed to fetch invoices'}
+          </p>
+          <Button onClick={() => window.location.reload()} className="btn-solid-red">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -109,7 +213,7 @@ export default function InvoicesPage() {
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <Button variant="outline">
+          <Button variant="outline" className="btn-outline-blue">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -190,7 +294,7 @@ export default function InvoicesPage() {
                   <SelectContent>
                     <SelectItem value="vendor">Vendor</SelectItem>
                     <SelectItem value="amount">Amount</SelectItem>
-                    <SelectItem value="deadline">Deadline</SelectItem>
+                    <SelectItem value="deadline">Discount Deadline</SelectItem>
                     <SelectItem value="apr">APR</SelectItem>
                   </SelectContent>
                 </Select>
@@ -199,6 +303,7 @@ export default function InvoicesPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className="btn-outline-gray"
               >
                 <ArrowUpDown className="h-4 w-4 mr-2" />
                 {sortOrder === "asc" ? "Ascending" : "Descending"}
@@ -240,8 +345,6 @@ export default function InvoicesPage() {
                 </thead>
                 <tbody>
                   {filteredInvoices.map((invoice) => {
-                    const daysUntil = calculateDaysUntil(invoice.discountDeadline);
-                    const deadlineStatus = getDeadlineStatus(daysUntil);
                     
                     return (
                       <tr key={invoice.id} className="border-b hover:bg-muted/50">
@@ -261,15 +364,7 @@ export default function InvoicesPage() {
                           <Badge variant="outline">{invoice.terms}</Badge>
                         </td>
                         <td className="p-4">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm">{formatDate(invoice.discountDeadline)}</span>
-                            <Badge 
-                              variant="outline" 
-                              className={DEADLINE_STATUS[deadlineStatus]}
-                            >
-                              {daysUntil}d
-                            </Badge>
-                          </div>
+                          <span className="text-sm">{formatDate(invoice.discountDeadline)}</span>
                         </td>
                         <td className="p-4 text-right">
                           <span className="font-medium">
@@ -300,6 +395,7 @@ export default function InvoicesPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => setSelectedInvoice(invoice.id)}
+                            className="btn-ghost-blue"
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -317,8 +413,8 @@ export default function InvoicesPage() {
       {/* Invoice Detail Drawer */}
       {selectedInvoice && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto">
-            <CardHeader>
+          <Card className="w-full max-w-2xl max-h-[80vh] overflow-y-auto bg-white dark:bg-gray-900 border shadow-lg">
+            <CardHeader className="bg-white dark:bg-gray-900">
               <div className="flex items-center justify-between">
                 <CardTitle>Invoice Details</CardTitle>
                 <Button
@@ -330,13 +426,13 @@ export default function InvoicesPage() {
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="bg-white dark:bg-gray-900">
               {(() => {
                 const invoice = invoices.find(inv => inv.id === selectedInvoice);
                 if (!invoice) return null;
                 
                 return (
-                  <div className="space-y-6">
+                  <div className="space-y-6 text-gray-900 dark:text-gray-100">
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <label className="text-sm font-medium text-muted-foreground">Vendor</label>
@@ -392,13 +488,22 @@ export default function InvoicesPage() {
 
                     <div className="border-t pt-6">
                       <div className="flex space-x-4">
-                        <Button>
+                        <Button 
+                          onClick={handleApprove}
+                          disabled={createDecisionMutation.isPending}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
                           <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve
+                          {createDecisionMutation.isPending ? "Processing..." : "Approve"}
                         </Button>
-                        <Button variant="outline">
+                        <Button 
+                          variant="outline"
+                          onClick={handleDismiss}
+                          disabled={createDecisionMutation.isPending}
+                          className="border-red-600 text-red-600 hover:bg-red-50"
+                        >
                           <XCircle className="h-4 w-4 mr-2" />
-                          Dismiss
+                          {createDecisionMutation.isPending ? "Processing..." : "Dismiss"}
                         </Button>
                       </div>
                     </div>

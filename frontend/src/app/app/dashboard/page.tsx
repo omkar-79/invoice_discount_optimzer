@@ -16,9 +16,9 @@ import {
   ArrowUpDown,
   Search
 } from "lucide-react";
-import { useInvoices, useTodayRate } from "@/hooks/use-api";
-import { formatCurrency, formatPercentage, formatDate, calculateDaysUntil, getDeadlineStatus } from "@/lib/utils";
-import { RECOMMENDATION_COLORS, DEADLINE_STATUS } from "@/lib/constants";
+import { useInvoices, useTodayRate, useUpdateRecommendations, useSavingsTracker, useCashPlan, useDashboardStats } from "@/hooks/use-api";
+import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
+import { RECOMMENDATION_COLORS } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
@@ -48,38 +48,46 @@ export default function DashboardPage() {
     setSelectedInvoices([]);
   };
 
-  const filteredInvoices = invoicesData?.items?.filter(invoice =>
-    invoice.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || [];
+  const handleUpdateRecommendations = async () => {
+    try {
+      await updateRecommendationsMutation.mutateAsync();
+    } catch (error) {
+      console.error('Failed to update recommendations:', error);
+    }
+  };
+
+  const filteredInvoices = invoicesData?.items?.filter(invoice => {
+    // Only show pending invoices
+    if (invoice.status !== 'PENDING') return false;
+    
+    // Apply search filter
+    if (searchTerm) {
+      return invoice.vendor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+             invoice.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase());
+    }
+    
+    return true;
+  }) || [];
 
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
     if (sortBy === "apr") {
       return b.impliedAprPct - a.impliedAprPct;
     } else {
-      return new Date(a.discountDeadline).getTime() - new Date(b.discountDeadline).getTime();
+      // Handle null discountDeadline values
+      const aDate = a.discountDeadline ? new Date(a.discountDeadline).getTime() : 0;
+      const bDate = b.discountDeadline ? new Date(b.discountDeadline).getTime() : 0;
+      return aDate - bDate;
     }
   });
 
   const totalSavings = selectedInvoices.reduce((sum, id) => {
     const invoice = invoicesData?.items?.find(inv => inv.id === id);
-    return sum + (invoice?.amount * 0.02 || 0); // 2% discount
+    return sum + ((invoice?.amount || 0) * 0.02); // 2% discount
   }, 0);
 
-  const mockSavingsData = [
-    { month: "Sep", savings: 1200 },
-    { month: "Oct", savings: 1800 },
-    { month: "Nov", savings: 2100 },
-    { month: "Dec", savings: 1950 },
-    { month: "Jan", savings: 2250 },
-  ];
-
-  const mockCashPlanData = [
-    { week: "Week 1", take: 10000, hold: 5000 },
-    { week: "Week 2", take: 8000, hold: 3000 },
-    { week: "Week 3", take: 12000, hold: 2000 },
-    { week: "Week 4", take: 6000, hold: 4000 },
-  ];
+  // Use real data from API, fallback to empty arrays if loading
+  const displaySavingsData = savingsData || [];
+  const displayCashPlanData = cashPlanData || [];
 
   if (invoicesLoading) {
     return (
@@ -110,8 +118,24 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">
             Review and approve invoice discount opportunities
           </p>
+          <p className="text-sm text-muted-foreground">
+            Today: {new Date().toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              year: 'numeric', 
+              month: 'long', 
+              day: 'numeric' 
+            })}
+          </p>
         </div>
         <div className="flex items-center space-x-4">
+          <Button 
+            onClick={handleUpdateRecommendations}
+            disabled={updateRecommendationsMutation.isPending}
+            variant="outline"
+          >
+            <Clock className="mr-2 h-4 w-4" />
+            {updateRecommendationsMutation.isPending ? "Updating..." : "Update for Today"}
+          </Button>
           <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
@@ -164,7 +188,7 @@ export default function DashboardPage() {
                 <div>
                   <CardTitle>{copy.dashboard.actionQueue.title}</CardTitle>
                   <CardDescription>
-                    {filteredInvoices.length} invoice{filteredInvoices.length !== 1 ? 's' : ''} pending review
+                    {filteredInvoices.length} pending invoice{filteredInvoices.length !== 1 ? 's' : ''} requiring action
                   </CardDescription>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -192,9 +216,9 @@ export default function DashboardPage() {
               {filteredInvoices.length === 0 ? (
                 <div className="text-center py-12">
                   <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">No invoices found</h3>
+                  <h3 className="text-lg font-medium mb-2">No pending invoices</h3>
                   <p className="text-muted-foreground mb-4">
-                    {searchTerm ? "Try adjusting your search terms" : "Upload a CSV to get started"}
+                    {searchTerm ? "Try adjusting your search terms" : "All invoices have been processed or upload a CSV to get started"}
                   </p>
                   <Button>
                     <Upload className="h-4 w-4 mr-2" />
@@ -234,8 +258,6 @@ export default function DashboardPage() {
 
                   {/* Invoice list */}
                   {sortedInvoices.map((invoice) => {
-                    const daysUntil = calculateDaysUntil(invoice.discountDeadline);
-                    const deadlineStatus = getDeadlineStatus(daysUntil);
                     const isSelected = selectedInvoices.includes(invoice.id);
                     
                     return (
@@ -262,13 +284,6 @@ export default function DashboardPage() {
                             <span>{invoice.terms}</span>
                             <span>•</span>
                             <span>Due {formatDate(invoice.dueDate)}</span>
-                            <span>•</span>
-                            <Badge 
-                              variant="outline" 
-                              className={DEADLINE_STATUS[deadlineStatus]}
-                            >
-                              {daysUntil} days
-                            </Badge>
                           </div>
                         </div>
                         <div className="text-right">
@@ -302,28 +317,36 @@ export default function DashboardPage() {
             <CardContent>
               <div className="text-center mb-4">
                 <div className="text-3xl font-bold text-emerald-600">
-                  {formatCurrency(mockSavingsData[mockSavingsData.length - 1].savings)}
+                  {savingsLoading ? (
+                    <div className="animate-pulse bg-muted h-8 w-24 mx-auto rounded"></div>
+                  ) : (
+                    formatCurrency(dashboardStats?.thisMonthSavings || 0)
+                  )}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {copy.dashboard.savings.thisMonth}
                 </div>
               </div>
               <div className="h-32">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={mockSavingsData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="month" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Savings']} />
-                    <Line 
-                      type="monotone" 
-                      dataKey="savings" 
-                      stroke="#10b981" 
-                      strokeWidth={2}
-                      dot={{ fill: '#10b981' }}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                {savingsLoading ? (
+                  <div className="animate-pulse bg-muted h-full rounded"></div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={displaySavingsData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Savings']} />
+                      <Line 
+                        type="monotone" 
+                        dataKey="savings" 
+                        stroke="#10b981" 
+                        strokeWidth={2}
+                        dot={{ fill: '#10b981' }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -338,16 +361,20 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="h-48">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockCashPlanData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="week" />
-                    <YAxis />
-                    <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
-                    <Bar dataKey="take" stackId="a" fill="#10b981" name="Take Discount" />
-                    <Bar dataKey="hold" stackId="a" fill="#6b7280" name="Hold Cash" />
-                  </BarChart>
-                </ResponsiveContainer>
+                {cashPlanLoading ? (
+                  <div className="animate-pulse bg-muted h-full rounded"></div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={displayCashPlanData}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="week" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
+                      <Bar dataKey="take" stackId="a" fill="#10b981" name="Take Discount" />
+                      <Bar dataKey="hold" stackId="a" fill="#6b7280" name="Hold Cash" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
               </div>
             </CardContent>
           </Card>

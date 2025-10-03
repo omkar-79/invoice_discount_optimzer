@@ -16,8 +16,8 @@ import {
   MessageCircle
 } from "lucide-react";
 import { mockInvoices, mockRate, mockSavingsData } from "@/lib/mock-data";
-import { formatCurrency, formatPercentage, formatDate, calculateDaysUntil, getDeadlineStatus } from "@/lib/utils";
-import { RECOMMENDATION_COLORS, DEADLINE_STATUS } from "@/lib/constants";
+import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
+import { RECOMMENDATION_COLORS } from "@/lib/constants";
 
 export default function DemoPage() {
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
@@ -106,8 +106,6 @@ export default function DemoPage() {
               <CardContent>
                 <div className="space-y-4">
                   {mockInvoices.slice(0, 3).map((invoice) => {
-                    const daysUntil = calculateDaysUntil(invoice.discountDeadline);
-                    const deadlineStatus = getDeadlineStatus(daysUntil);
                     
                     return (
                       <div
@@ -130,13 +128,6 @@ export default function DemoPage() {
                             <span>{invoice.terms}</span>
                             <span>•</span>
                             <span>Due {formatDate(invoice.dueDate)}</span>
-                            <span>•</span>
-                            <Badge 
-                              variant="outline" 
-                              className={DEADLINE_STATUS[deadlineStatus]}
-                            >
-                              {daysUntil} days
-                            </Badge>
                           </div>
                         </div>
                         <div className="text-right">
