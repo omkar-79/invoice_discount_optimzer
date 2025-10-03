@@ -1,45 +1,101 @@
-name: deploy-api
+name: Deploy API to ECS
+
 on:
   push:
     branches: [ main ]
 
+permissions:
+  id-token: write   # for OIDC
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  ECR_REPO: ${{ vars.ECR_REPO }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
+  TASK_FAMILY: ${{ vars.TASK_FAMILY }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write     # required for OIDC
-      contents: read
-    env:
-      AWS_REGION: us-east-1
-      ECR_REPO: apdisc-api
-      ECS_CLUSTER: apdisc-cluster
-      ECS_SERVICE: apdisc-api-svc
-      ACCOUNT_ID: 100024683059
-    steps:
-      - uses: actions/checkout@v4
 
-      - name: Configure AWS creds (OIDC)
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/apdisc-github-deployer
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build & push :latest
+      - name: Compute image tag
+        id: meta
         run: |
-          IMAGE=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPO }}:latest
-          cd backend/api
-          docker build -t "$IMAGE" .
-          docker push "$IMAGE"
+          SHA="${GITHUB_SHA::12}"
+          echo "tag=$SHA" >> $GITHUB_OUTPUT
+          echo "repo_uri=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}" >> $GITHUB_OUTPUT
 
-      - name: Force new ECS deployment
+      - name: Build & Push (linux/amd64)
+        run: |
+          docker buildx create --use >/dev/null 2>&1 || true
+          docker buildx build \
+            --platform linux/amd64 \
+            -f backend/api/Dockerfile \
+            -t ${{ steps.meta.outputs.repo_uri }}:${{ steps.meta.outputs.tag }} \
+            --push \
+            ./backend/api
+
+      - name: Prepare new task definition JSON
+        id: td
+        run: |
+          FAMILY="${TASK_FAMILY}"
+          IMAGE="${{ steps.meta.outputs.repo_uri }}:${{ steps.meta.outputs.tag }}"
+          # Get current task def
+          aws ecs describe-task-definition --task-definition "$FAMILY" > td.json
+          # Build minimal new TD with updated image (1st container)
+          jq --arg IMG "$IMAGE" '
+            .taskDefinition
+            | {family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform}
+            | .containerDefinitions[0].image = $IMG
+          ' td.json > new-td.json
+
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+
+      - name: Register new task definition
+        run: |
+          aws ecs register-task-definition --cli-input-json file://new-td.json
+
+      - name: Force new deployment
         run: |
           aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE \
+            --cluster "$ECS_CLUSTER" \
+            --service "$ECS_SERVICE" \
             --force-new-deployment
 
-
+      # --- OPTIONAL: run Prisma migrate after deploy ---
+      # uncomment this block if you want automatic migrations
+      # - name: Run Prisma migrate deploy (one-off task)
+      #   if: always()
+      #   run: |
+      #     SUBNETS="${{ secrets.ECS_SUBNETS }}"
+      #     SG="${{ secrets.ECS_SECURITY_GROUP }}"
+      #     [ -z "$SUBNETS" ] && echo "Skip migrate: ECS_SUBNETS not set" && exit 0
+      #     [ -z "$SG" ] && echo "Skip migrate: ECS_SECURITY_GROUP not set" && exit 0
+      #     # Grab the latest task def ARN (just registered)
+      #     TD_ARN=$(aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --query 'taskDefinition.taskDefinitionArn' --output text)
+      #     aws ecs run-task \
+      #       --cluster "$ECS_CLUSTER" \
+      #       --launch-type FARGATE \
+      #       --task-definition "$TD_ARN" \
+      #       --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SG}],assignPublicIp=ENABLED}" \
+      #       --overrides '{
+      #         "containerOverrides": [{
+      #           "name": "api",
+      #           "command": ["npx","prisma","migrate","deploy"]
+      #         }]
+      #       }'
