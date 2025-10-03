@@ -18,6 +18,7 @@ RUN npm run build
 FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
+RUN apk add --no-cache curl
 # Copy package manifests first for clarity
 COPY package*.json ./
 # Bring built node_modules then prune dev deps
