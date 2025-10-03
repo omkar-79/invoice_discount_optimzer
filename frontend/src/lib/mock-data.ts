@@ -94,6 +94,13 @@ export const mockAuditItems: AuditItem[] = [
     timestamp: "2025-01-02T14:11:00Z",
     user: "demo@example.com",
     invoiceIds: ["inv_101"],
+    invoices: [
+      {
+        id: "inv_101",
+        invoiceNumber: "INV-2025-001",
+        vendor: "Acme Corp"
+      }
+    ],
     action: "APPROVE_TAKE",
     benchmarkPct: 5.1,
     impliedAprPct: 24.49,
@@ -105,6 +112,13 @@ export const mockAuditItems: AuditItem[] = [
     timestamp: "2025-01-01T16:30:00Z",
     user: "demo@example.com",
     invoiceIds: ["inv_202"],
+    invoices: [
+      {
+        id: "inv_202",
+        invoiceNumber: "INV-2025-002",
+        vendor: "Beta LLC"
+      }
+    ],
     action: "APPROVE_HOLD",
     benchmarkPct: 5.1,
     impliedAprPct: 12.17,

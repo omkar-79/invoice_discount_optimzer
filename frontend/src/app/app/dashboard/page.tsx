@@ -29,6 +29,10 @@ export default function DashboardPage() {
   
   const { data: rateData, isLoading: rateLoading } = useTodayRate();
   const { data: invoicesData, isLoading: invoicesLoading } = useInvoices();
+  const { data: savingsData, isLoading: savingsLoading } = useSavingsTracker();
+  const { data: cashPlanData, isLoading: cashPlanLoading } = useCashPlan();
+  const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
+  const updateRecommendationsMutation = useUpdateRecommendations();
 
   const toggleInvoiceSelection = (invoiceId: string) => {
     setSelectedInvoices(prev => 

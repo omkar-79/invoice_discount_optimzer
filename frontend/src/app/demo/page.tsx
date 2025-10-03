@@ -32,7 +32,7 @@ export default function DemoPage() {
 
   const totalSavings = selectedInvoices.reduce((sum, id) => {
     const invoice = mockInvoices.find(inv => inv.id === id);
-    return sum + (invoice?.amount * 0.02 || 0); // 2% discount
+    return sum + ((invoice?.amount || 0) * 0.02); // 2% discount
   }, 0);
 
   return (

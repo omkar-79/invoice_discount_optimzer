@@ -153,6 +153,8 @@ export interface DashboardFilters {
   status?: string
   recommendation?: string
   minApr?: number
+  limit?: number
+  cursor?: string
 }
 
 export interface AuditFilters {

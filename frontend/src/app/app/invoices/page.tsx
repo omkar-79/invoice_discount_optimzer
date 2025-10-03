@@ -79,7 +79,9 @@ export default function InvoicesPage() {
         comparison = a.amount - b.amount;
         break;
       case "deadline":
-        comparison = new Date(a.discountDeadline).getTime() - new Date(b.discountDeadline).getTime();
+        const aDate = a.discountDeadline ? new Date(a.discountDeadline).getTime() : 0;
+        const bDate = b.discountDeadline ? new Date(b.discountDeadline).getTime() : 0;
+        comparison = aDate - bDate;
         break;
       case "apr":
         comparison = a.impliedAprPct - b.impliedAprPct;

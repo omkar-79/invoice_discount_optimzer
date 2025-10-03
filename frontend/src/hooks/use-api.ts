@@ -19,7 +19,7 @@ import {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api"
 
 // Helper function to get auth headers
-const getAuthHeaders = () => {
+const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('auth_token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
@@ -217,6 +217,10 @@ export const useImportInvoices = () => {
     mutationFn: api.importInvoices,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] })
+      // Also refresh analytics that depend on invoices/decisions
+      queryClient.invalidateQueries({ queryKey: ["analytics", "savings-tracker"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "cash-plan"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "dashboard-stats"] })
     },
   })
 }
@@ -229,6 +233,10 @@ export const useCreateDecision = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] })
       queryClient.invalidateQueries({ queryKey: ["audit"] })
+      // Refresh analytics after a decision changes savings and cash plan
+      queryClient.invalidateQueries({ queryKey: ["analytics", "savings-tracker"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "cash-plan"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "dashboard-stats"] })
     },
   })
 }
@@ -259,6 +267,10 @@ export const useUpdateRecommendations = () => {
     mutationFn: api.updateRecommendations,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] })
+      // Updating recommendations may affect analytics aggregates
+      queryClient.invalidateQueries({ queryKey: ["analytics", "savings-tracker"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "cash-plan"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "dashboard-stats"] })
     },
   })
 }
