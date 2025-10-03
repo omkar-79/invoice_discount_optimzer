@@ -5,16 +5,17 @@ on:
     branches: [ main ]
 
 permissions:
-  id-token: write   # for OIDC
+  id-token: write   # OIDC
   contents: read
 
 env:
-  AWS_REGION: ${{ vars.AWS_REGION }}
-  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
-  ECR_REPO: ${{ vars.ECR_REPO }}
-  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
-  ECS_SERVICE: ${{ vars.ECS_SERVICE }}
-  TASK_FAMILY: ${{ vars.TASK_FAMILY }}
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "100024683059"
+  ECR_REPO: apdisc2-api
+  ECS_CLUSTER: apdisc2
+  ECS_SERVICE: apdisc2-api-svc
+  TASK_FAMILY: apdisc2-api
+  CONTAINER_NAME: api
 
 jobs:
   deploy:
@@ -33,12 +34,13 @@ jobs:
       - name: Login to ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Compute image tag
+      - name: Compute image meta
         id: meta
         run: |
           SHA="${GITHUB_SHA::12}"
-          echo "tag=$SHA" >> $GITHUB_OUTPUT
-          echo "repo_uri=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}" >> $GITHUB_OUTPUT
+          REPO_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+          echo "tag=$SHA" >> "$GITHUB_OUTPUT"
+          echo "repo_uri=$REPO_URI" >> "$GITHUB_OUTPUT"
 
       - name: Build & Push (linux/amd64)
         run: |
@@ -46,25 +48,40 @@ jobs:
           docker buildx build \
             --platform linux/amd64 \
             -f backend/api/Dockerfile \
-            -t ${{ steps.meta.outputs.repo_uri }}:${{ steps.meta.outputs.tag }} \
+            -t "${{ steps.meta.outputs.repo_uri }}:${{ steps.meta.outputs.tag }}" \
             --push \
             ./backend/api
 
-      - name: Prepare new task definition JSON
+      - name: Fetch current task definition
+        run: |
+          aws ecs describe-task-definition --task-definition "${TASK_FAMILY}" > td.json
+
+      - name: Prepare new task definition JSON (update image, strip nulls)
         id: td
         run: |
-          FAMILY="${TASK_FAMILY}"
           IMAGE="${{ steps.meta.outputs.repo_uri }}:${{ steps.meta.outputs.tag }}"
-          # Get current task def
-          aws ecs describe-task-definition --task-definition "$FAMILY" > td.json
-          # Build minimal new TD with updated image (1st container)
-          jq --arg IMG "$IMAGE" '
+
+          # Update the container image by name and drop AWS-managed + null fields
+          jq --arg IMG "$IMAGE" --arg NAME "$CONTAINER_NAME" '
             .taskDefinition
-            | {family, taskRoleArn, executionRoleArn, networkMode, containerDefinitions, volumes, placementConstraints, requiresCompatibilities, cpu, memory, runtimePlatform}
-            | .containerDefinitions[0].image = $IMG
+            # update the container image for matching name
+            | .containerDefinitions = (.containerDefinitions
+                | map(if .name == $NAME then (.image = $IMG) else . end))
+            # drop AWS-managed fields
+            | del(
+                .taskDefinitionArn,
+                .revision,
+                .status,
+                .requiresAttributes,
+                .compatibilities,
+                .registeredAt,
+                .registeredBy
+              )
+            # remove keys with null values (ECS API rejects nulls like taskRoleArn: null)
+            | with_entries(select(.value != null))
           ' td.json > new-td.json
 
-          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
       - name: Register new task definition
         run: |
@@ -73,29 +90,30 @@ jobs:
       - name: Force new deployment
         run: |
           aws ecs update-service \
-            --cluster "$ECS_CLUSTER" \
-            --service "$ECS_SERVICE" \
+            --cluster "${ECS_CLUSTER}" \
+            --service "${ECS_SERVICE}" \
             --force-new-deployment
 
-      # --- OPTIONAL: run Prisma migrate after deploy ---
-      # uncomment this block if you want automatic migrations
-      # - name: Run Prisma migrate deploy (one-off task)
+      # -------- OPTIONAL: run Prisma migrations after deploy --------
+      # Enable this block if you want to auto-apply migrations.
+      # Add repo secrets:
+      #   ECS_SUBNETS = subnet-xxxx,subnet-yyyy
+      #   ECS_SECURITY_GROUP = sg-xxxx
+      #
+      # - name: Run Prisma migrate (one-off task)
       #   if: always()
       #   run: |
-      #     SUBNETS="${{ secrets.ECS_SUBNETS }}"
-      #     SG="${{ secrets.ECS_SECURITY_GROUP }}"
-      #     [ -z "$SUBNETS" ] && echo "Skip migrate: ECS_SUBNETS not set" && exit 0
-      #     [ -z "$SG" ] && echo "Skip migrate: ECS_SECURITY_GROUP not set" && exit 0
-      #     # Grab the latest task def ARN (just registered)
-      #     TD_ARN=$(aws ecs describe-task-definition --task-definition "$TASK_FAMILY" --query 'taskDefinition.taskDefinitionArn' --output text)
+      #     if [ -z "${{ secrets.ECS_SUBNETS }}" ] || [ -z "${{ secrets.ECS_SECURITY_GROUP }}" ]; then
+      #       echo "Skip migrate: ECS_SUBNETS or ECS_SECURITY_GROUP not set"; exit 0; fi
+      #     TD_ARN=$(aws ecs describe-task-definition --task-definition "${TASK_FAMILY}" --query 'taskDefinition.taskDefinitionArn' --output text)
       #     aws ecs run-task \
-      #       --cluster "$ECS_CLUSTER" \
+      #       --cluster "${ECS_CLUSTER}" \
       #       --launch-type FARGATE \
       #       --task-definition "$TD_ARN" \
-      #       --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SG}],assignPublicIp=ENABLED}" \
+      #       --network-configuration "awsvpcConfiguration={subnets=[${{ secrets.ECS_SUBNETS }}],securityGroups=[${{ secrets.ECS_SECURITY_GROUP }}],assignPublicIp=ENABLED}" \
       #       --overrides '{
       #         "containerOverrides": [{
-      #           "name": "api",
+      #           "name": "'"${CONTAINER_NAME}"'",
       #           "command": ["npx","prisma","migrate","deploy"]
       #         }]
       #       }'
