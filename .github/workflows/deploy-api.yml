@@ -14,7 +14,7 @@ env:
   ECR_REPO: apdisc2-api
   ECS_CLUSTER: apdisc2
   ECS_SERVICE: apdisc2-api-svc
-  TASK_FAMILY: apdisc2-api
+  TASK_FAMILY: apdisc
   CONTAINER_NAME: api
 
 jobs:
