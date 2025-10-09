@@ -32,7 +32,6 @@
     "axios": "^1.12.2",
     "bcrypt": "^6.0.0",
     "fast-csv": "^5.0.5",
-    "ioredis": "^5.8.0",
     "multer": "^2.0.2",
     "nestjs-pino": "^4.4.1",
     "passport": "^0.7.0",
