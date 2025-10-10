@@ -18,11 +18,9 @@ import {
   LogOut,
   Bell,
   ChevronDown,
-  MessageCircle,
-  TrendingUp
+  MessageCircle
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useTodayRate } from "@/hooks/use-api";
 import { useAuth } from "@/contexts/auth-context";
 import ChatbotDrawer from "@/components/chatbot-drawer";
 import ProtectedRoute from "@/components/protected-route";
@@ -37,7 +35,7 @@ export default function AppLayout({
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
-  const { data: rateData, isLoading: rateLoading } = useTodayRate();
+  // Removed rate fetching; not used in layout
 
   const navigationItems = [
     { name: "Dashboard", href: "/app/dashboard", icon: LayoutDashboard },
@@ -127,24 +125,7 @@ export default function AppLayout({
                 <Calculator className="h-5 w-5" />
               </Button>
               
-              {/* Rate badge */}
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline" className="px-3 py-1">
-                  {rateLoading ? (
-                    "Loading..."
-                  ) : (
-                    <>
-                      <TrendingUp className="h-3 w-3 mr-1" />
-                      {rateData?.benchmark.annualRatePct.toFixed(1)}% 1-3M
-                    </>
-                  )}
-                </Badge>
-                {rateData?.benchmark.deltaBpsDay && (
-                  <span className="text-xs text-muted-foreground">
-                    {rateData.benchmark.deltaBpsDay > 0 ? '+' : ''}{rateData.benchmark.deltaBpsDay} bps
-                  </span>
-                )}
-              </div>
+              {/* Rate badge removed */}
             </div>
 
             <div className="flex items-center space-x-4">

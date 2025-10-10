@@ -17,7 +17,7 @@ import {
   ArrowUpDown,
   Search
 } from "lucide-react";
-import { useInvoices, useTodayRate, useUpdateRecommendations, useSavingsTracker, useCashPlan, useDashboardStats } from "@/hooks/use-api";
+import { useInvoices, useUpdateRecommendations, useSavingsTracker, useCashPlan, useDashboardStats } from "@/hooks/use-api";
 import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
 import { RECOMMENDATION_COLORS } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
@@ -57,7 +57,7 @@ export default function DashboardPage() {
   const [sortBy, setSortBy] = useState<"apr" | "deadline">("apr");
   const router = useRouter();
   
-  const { data: rateData, isLoading: rateLoading } = useTodayRate();
+  // Rate fetching removed; users provide their own rates
   const { data: invoicesData, isLoading: invoicesLoading } = useInvoices();
   const { data: savingsData, isLoading: savingsLoading } = useSavingsTracker();
   const { data: cashPlanData, isLoading: cashPlanLoading } = useCashPlan();

@@ -34,16 +34,7 @@ const getAuthHeaders = (): Record<string, string> => {
  * All functions include proper error handling and type safety
  */
 const api = {
-  // ===== RATES API =====
-  /**
-   * Fetches today's benchmark interest rate
-   * Used for comparison with invoice discount rates
-   */
-  getTodayRate: async (): Promise<Rate> => {
-    const response = await fetch(`${API_BASE_URL}/rates/today`)
-    if (!response.ok) throw new Error('Failed to fetch rate')
-    return response.json()
-  },
+  // RATES API REMOVED: We no longer fetch default/benchmark rates from API.
 
   // ===== INVOICES API =====
   /**
@@ -233,13 +224,7 @@ const api = {
 }
 
 // React Query hooks
-export const useTodayRate = () => {
-  return useQuery({
-    queryKey: ["rates", "today"],
-    queryFn: api.getTodayRate,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  })
-}
+// useTodayRate removed
 
 export const useInvoices = (filters?: DashboardFilters) => {
   return useQuery({
