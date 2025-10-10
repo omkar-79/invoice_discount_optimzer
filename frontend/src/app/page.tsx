@@ -150,7 +150,8 @@ export default function LandingPage() {
                           feature.icon === "TrendingUp" ? TrendingUp :
                           feature.icon === "DollarSign" ? DollarSign :
                           feature.icon === "History" ? History :
-                          feature.icon === "MessageCircle" ? MessageCircle : Upload;
+                          feature.icon === "Calculator" ? Calculator :
+                          feature.icon === "Shield" ? Shield : Upload;
               
               return (
                 <Card key={feature.title}>

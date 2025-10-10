@@ -25,6 +25,10 @@ export const mockInvoices: Invoice[] = [
     reason: "Implied APR exceeds benchmark by 3198 bps",
     status: "PENDING",
     notes: "Office stock",
+    userRate: 5.0,
+    rateType: "INVESTMENT",
+    borrowingCost: null,
+    investmentReturn: null,
   },
   {
     id: "inv_456",
@@ -40,6 +44,10 @@ export const mockInvoices: Invoice[] = [
     recommendation: "TAKE",
     reason: "Implied APR exceeds benchmark by 1700 bps",
     status: "PENDING",
+    userRate: 5.0,
+    rateType: "INVESTMENT",
+    borrowingCost: null,
+    investmentReturn: null,
   },
   {
     id: "inv_789",
@@ -55,6 +63,10 @@ export const mockInvoices: Invoice[] = [
     recommendation: "HOLD",
     reason: "No discount available",
     status: "PENDING",
+    userRate: 5.0,
+    rateType: "INVESTMENT",
+    borrowingCost: null,
+    investmentReturn: 100.0,
   },
   {
     id: "inv_101",
@@ -70,6 +82,10 @@ export const mockInvoices: Invoice[] = [
     recommendation: "TAKE",
     reason: "Implied APR exceeds benchmark by 1939 bps",
     status: "APPROVED",
+    userRate: 5.0,
+    rateType: "INVESTMENT",
+    borrowingCost: null,
+    investmentReturn: null,
   },
   {
     id: "inv_202",
@@ -85,6 +101,10 @@ export const mockInvoices: Invoice[] = [
     recommendation: "HOLD",
     reason: "Implied APR only 707 bps above benchmark",
     status: "DISMISSED",
+    userRate: 5.0,
+    rateType: "INVESTMENT",
+    borrowingCost: null,
+    investmentReturn: 30.0,
   },
 ]
 
