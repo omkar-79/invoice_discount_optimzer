@@ -22,6 +22,13 @@ import { RECOMMENDATION_COLORS } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
 import { useAuth } from "@/contexts/auth-context";
 
+// Helper function to parse discount percentage from terms
+const parseDiscountPercentage = (terms: string): number => {
+  // Handle formats like "2/10 net 30" - extract the first number as discount percentage
+  const match = terms.match(/(\d+)\/\d+/);
+  return match ? parseInt(match[1]) : 0;
+};
+
 export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -384,13 +391,48 @@ export default function InvoicesPage() {
                             </Badge>
                           </div>
                         </td>
-                        <td className="p-4 text-center">
-                          <Badge 
-                            variant="outline" 
-                            className={RECOMMENDATION_COLORS[invoice.recommendation]}
-                          >
-                            {invoice.recommendation}
-                          </Badge>
+                        <td className="p-4">
+                          {invoice.recommendation === 'TAKE' && (
+                            <div className="p-3 rounded-lg border border-green-200 bg-green-50">
+                              <div className="flex items-center mb-1">
+                                <span className="text-lg mr-2">💰</span>
+                                <div className="font-medium text-sm text-green-800">Pay Early</div>
+                              </div>
+                              <div className="text-sm font-bold text-green-600">
+                                Save: {formatCurrency(invoice.amount * (parseDiscountPercentage(invoice.terms) / 100))}
+                              </div>
+                            </div>
+                          )}
+
+                          {invoice.recommendation === 'BORROW' && (
+                            <div className="p-3 rounded-lg border border-orange-200 bg-orange-50">
+                              <div className="flex items-center mb-1">
+                                <span className="text-lg mr-2">💳</span>
+                                <div className="font-medium text-sm text-orange-800">Borrow to Pay Early</div>
+                              </div>
+                              <div className="text-sm font-bold text-orange-600">
+                                Net: {formatCurrency((invoice.amount * (parseDiscountPercentage(invoice.terms) / 100)) - (invoice.borrowingCost || 0))}
+                              </div>
+                            </div>
+                          )}
+
+                          {invoice.recommendation === 'HOLD' && (
+                            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50">
+                              <div className="flex items-center mb-1">
+                                <span className="text-lg mr-2">📈</span>
+                                <div className="font-medium text-sm text-blue-800">Hold Cash</div>
+                              </div>
+                              {invoice.rateType === 'INVESTMENT' && invoice.investmentReturn ? (
+                                <div className="text-sm font-bold text-blue-600">
+                                  Earn: {formatCurrency(invoice.investmentReturn)}
+                                </div>
+                              ) : (
+                                <div className="text-sm text-blue-600">
+                                  Pay on due date
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </td>
                         <td className="p-4 text-center">
                           <Button
@@ -473,17 +515,76 @@ export default function InvoicesPage() {
                           <span>Benchmark Rate:</span>
                           <span className="font-medium">5.1%</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span>Recommendation:</span>
-                          <Badge 
-                            variant="outline" 
-                            className={RECOMMENDATION_COLORS[invoice.recommendation]}
-                          >
-                            {invoice.recommendation}
-                          </Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {invoice.reason}
+                        <div className="space-y-3">
+                          <div className="font-medium">Recommended Action:</div>
+                          
+                          {invoice.recommendation === 'TAKE' && (
+                            <div className="p-4 rounded-lg border border-green-200 bg-green-50">
+                              <div className="flex items-center mb-2">
+                                <span className="text-2xl mr-2">💰</span>
+                                <div className="font-medium text-lg text-green-800">Pay Early</div>
+                              </div>
+                              <div className="text-xl font-bold text-green-600 mb-2">
+                                Save: {formatCurrency(invoice.amount * (parseDiscountPercentage(invoice.terms) / 100))}
+                              </div>
+                              <div className="text-sm text-green-700">
+                                Use your own cash to get the discount
+                              </div>
+                            </div>
+                          )}
+
+                          {invoice.recommendation === 'BORROW' && (
+                            <div className="p-4 rounded-lg border border-orange-200 bg-orange-50">
+                              <div className="flex items-center mb-2">
+                                <span className="text-2xl mr-2">💳</span>
+                                <div className="font-medium text-lg text-orange-800">Borrow to Pay Early</div>
+                              </div>
+                              <div className="text-xl font-bold text-orange-600 mb-2">
+                                Net Benefit: {formatCurrency((invoice.amount * (parseDiscountPercentage(invoice.terms) / 100)) - (invoice.borrowingCost || 0))}
+                              </div>
+                              <div className="text-sm text-orange-700">
+                                Borrow money to get the discount
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                Cost: {formatCurrency(invoice.borrowingCost || 0)} | Save: {formatCurrency(invoice.amount * (parseDiscountPercentage(invoice.terms) / 100))}
+                              </div>
+                            </div>
+                          )}
+
+                          {invoice.recommendation === 'HOLD' && (
+                            <div className="p-4 rounded-lg border border-blue-200 bg-blue-50">
+                              <div className="flex items-center mb-2">
+                                <span className="text-2xl mr-2">📈</span>
+                                <div className="font-medium text-lg text-blue-800">Hold Cash</div>
+                              </div>
+                              {invoice.rateType === 'INVESTMENT' && invoice.investmentReturn ? (
+                                <>
+                                  <div className="text-xl font-bold text-blue-600 mb-2">
+                                    Earn: {formatCurrency(invoice.investmentReturn)}
+                                  </div>
+                                  <div className="text-sm text-blue-700">
+                                    Invest your cash elsewhere for better returns
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    Rate: {formatPercentage(invoice.userRate || 0)}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-xl font-bold text-blue-600 mb-2">
+                                    Pay on Due Date
+                                  </div>
+                                  <div className="text-sm text-blue-700">
+                                    No discount available or not worth taking
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+                          
+                          <div className="text-sm text-muted-foreground">
+                            {invoice.reason}
+                          </div>
                         </div>
                       </div>
                     </div>

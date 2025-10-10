@@ -6,11 +6,25 @@ import { DecisionAction } from '@prisma/client';
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
+  // Helper function to parse discount percentage from terms
+  private parseDiscountPercentage(terms: string): number {
+    const match = terms.match(/(\d+)\/\d+/);
+    return match ? parseInt(match[1]) : 0;
+  }
+
+  /**
+   * Generates savings tracker data for the last 6 months
+   * Combines actual savings from past decisions with potential savings from current recommendations
+   * 
+   * @param userId - User ID for data isolation
+   * @returns Monthly savings data for chart visualization
+   */
   async getSavingsTracker(userId: string) {
     // Get savings data for the last 6 months
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
     
+    // Get actual decisions made
     const decisions = await this.prisma.decision.findMany({
       where: {
         userId,
@@ -28,14 +42,53 @@ export class AnalyticsService {
       },
     });
 
+    // Get current pending invoices with potential savings
+    const currentInvoices = await this.prisma.invoice.findMany({
+      where: {
+        userId,
+        status: 'PENDING',
+      },
+      select: {
+        amount: true,
+        terms: true,
+        recommendation: true,
+        borrowingCost: true,
+        investmentReturn: true,
+      },
+    });
+
     // Group by month and sum savings
     const monthlySavings = new Map<string, number>();
     
+    // Add actual savings from decisions made
     decisions.forEach(decision => {
       const monthKey = decision.timestamp.toISOString().substring(0, 7); // YYYY-MM
       const current = monthlySavings.get(monthKey) || 0;
       monthlySavings.set(monthKey, current + Number(decision.estimatedSavings));
     });
+
+    // Add potential savings from current recommendations
+    const currentMonth = new Date().toISOString().substring(0, 7);
+    let currentMonthPotential = monthlySavings.get(currentMonth) || 0;
+    
+    currentInvoices.forEach(invoice => {
+      if (invoice.recommendation === 'TAKE') {
+        // For TAKE: potential discount savings
+        const discountPct = this.parseDiscountPercentage(invoice.terms);
+        const potentialSavings = Number(invoice.amount) * (discountPct / 100);
+        currentMonthPotential += potentialSavings;
+      } else if (invoice.recommendation === 'BORROW') {
+        // For BORROW: net benefit (savings - borrowing cost)
+        const discountPct = this.parseDiscountPercentage(invoice.terms);
+        const discountSavings = Number(invoice.amount) * (discountPct / 100);
+        const netBenefit = discountSavings - (invoice.borrowingCost || 0);
+        if (netBenefit > 0) {
+          currentMonthPotential += netBenefit;
+        }
+      }
+    });
+    
+    monthlySavings.set(currentMonth, currentMonthPotential);
 
     // Convert to array format for chart
     const savingsData = Array.from(monthlySavings.entries()).map(([month, savings]) => ({
@@ -61,6 +114,13 @@ export class AnalyticsService {
     return allMonths;
   }
 
+  /**
+   * Generates cash plan data for the last 4 weeks
+   * Shows cash flow from both past decisions and current recommendations
+   * 
+   * @param userId - User ID for data isolation
+   * @returns Weekly cash flow data for chart visualization
+   */
   async getCashPlan(userId: string) {
     // Get current week's data
     const now = new Date();
@@ -94,6 +154,21 @@ export class AnalyticsService {
       },
     });
 
+    // Get current pending invoices for potential cash flow
+    const currentInvoices = await this.prisma.invoice.findMany({
+      where: {
+        userId,
+        status: 'PENDING',
+      },
+      select: {
+        amount: true,
+        terms: true,
+        recommendation: true,
+        borrowingCost: true,
+        investmentReturn: true,
+      },
+    });
+
     // Group by week
     const weeklyData = new Map<string, { take: number; hold: number }>();
     
@@ -114,6 +189,34 @@ export class AnalyticsService {
       
       weeklyData.set(weekKey, current);
     });
+
+    // Add current week's potential cash flow from pending invoices
+    const currentWeekKey = new Date().toISOString().substring(0, 10);
+    const currentWeekData = weeklyData.get(currentWeekKey) || { take: 0, hold: 0 };
+    
+    currentInvoices.forEach(invoice => {
+      if (invoice.recommendation === 'TAKE') {
+        // For TAKE: potential discount savings
+        const discountPct = this.parseDiscountPercentage(invoice.terms);
+        const potentialSavings = Number(invoice.amount) * (discountPct / 100);
+        currentWeekData.take += potentialSavings;
+      } else if (invoice.recommendation === 'BORROW') {
+        // For BORROW: net benefit (savings - borrowing cost)
+        const discountPct = this.parseDiscountPercentage(invoice.terms);
+        const discountSavings = Number(invoice.amount) * (discountPct / 100);
+        const netBenefit = discountSavings - (invoice.borrowingCost || 0);
+        if (netBenefit > 0) {
+          currentWeekData.take += netBenefit;
+        }
+      } else if (invoice.recommendation === 'HOLD') {
+        // For HOLD: potential investment return
+        if (invoice.investmentReturn) {
+          currentWeekData.hold += invoice.investmentReturn;
+        }
+      }
+    });
+    
+    weeklyData.set(currentWeekKey, currentWeekData);
 
     // Convert to array format for chart
     const cashPlanData: Array<{ week: string; take: number; hold: number }> = [];

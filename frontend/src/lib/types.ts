@@ -27,6 +27,9 @@ export interface UserSettings {
   userId: string
   safetyBuffer: number
   defaultCurrency: string
+  defaultInvestmentRate?: number
+  defaultBorrowingRate?: number
+  defaultRateType?: 'INVESTMENT' | 'BORROWING'
   emailSummary: boolean
   urgentDeadlineAlerts: boolean
   rateChangeAlerts: boolean
@@ -72,10 +75,14 @@ export interface Invoice {
   terms: string
   discountDeadline: string | null
   impliedAprPct: number
-  recommendation: "TAKE" | "HOLD"
+  recommendation: "TAKE" | "HOLD" | "BORROW"
   reason: string
   status: "PENDING" | "APPROVED" | "DISMISSED"
   notes?: string
+  userRate: number | null
+  rateType: 'INVESTMENT' | 'BORROWING' | null
+  borrowingCost: number | null
+  investmentReturn: number | null
 }
 
 export interface InvoiceResponse {

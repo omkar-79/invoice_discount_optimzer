@@ -22,6 +22,7 @@ import {
 import { useImportInvoices } from "@/hooks/use-api";
 import { SAMPLE_CSV } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
+import ManualInvoiceForm from "@/components/manual-invoice-form";
 
 interface CSVColumn {
   header: string;
@@ -40,6 +41,7 @@ export default function UploadPage() {
   const [columns, setColumns] = useState<CSVColumn[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
   const [validationErrors, setValidationErrors] = useState<Record<string, string[]>>({});
+  const [entryMethod, setEntryMethod] = useState<'csv' | 'manual'>('csv');
   
   const router = useRouter();
   const importMutation = useImportInvoices();
@@ -203,7 +205,17 @@ export default function UploadPage() {
   };
 
   const handleNext = () => {
-    if (currentStep === 2) {
+    if (currentStep === 1) {
+      // Skip to step 4 for manual entry
+      if (entryMethod === 'manual') {
+        setCurrentStep(4);
+        return;
+      }
+      // Continue with CSV flow
+      if (uploadedFile) {
+        setCurrentStep(2);
+      }
+    } else if (currentStep === 2) {
       // Validate mapping
       const requiredMappings = requiredFields.map(f => f.key);
       const mappedFields = Object.values(mapping);
@@ -222,7 +234,20 @@ export default function UploadPage() {
     }
   };
 
+  // Handle manual entry form submission
+  const handleManualSubmit = () => {
+    if (entryMethod === 'manual') {
+      setCurrentStep(4);
+    }
+  };
+
   const handleSubmit = async () => {
+    // Only handle CSV uploads here
+    if (entryMethod === 'manual') {
+      // Manual entry is handled by ManualInvoiceForm component
+      return;
+    }
+
     if (!uploadedFile) {
       console.error('No file to upload');
       return;
@@ -289,45 +314,77 @@ export default function UploadPage() {
             <CardDescription>{copy.upload.step1.description}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div
-              {...getRootProps()}
-              className={`
-                border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors
-                ${isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-                ${uploadedFile ? 'border-primary bg-primary/5' : ''}
-              `}
-            >
-              <input {...getInputProps()} />
-              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              {uploadedFile ? (
-                <div>
-                  <FileText className="h-8 w-8 mx-auto mb-2 text-primary" />
-                  <p className="font-medium">{uploadedFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {copy.upload.step1.acceptedFormats}
-                  </p>
+            {/* Entry Method Selection */}
+            <div className="mb-6">
+              <div className="flex gap-4 mb-4">
+                <Button
+                  variant={entryMethod === 'csv' ? 'default' : 'outline'}
+                  onClick={() => setEntryMethod('csv')}
+                  className="flex-1"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload CSV File
+                </Button>
+                <Button
+                  variant={entryMethod === 'manual' ? 'default' : 'outline'}
+                  onClick={() => setEntryMethod('manual')}
+                  className="flex-1"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  Manual Entry
+                </Button>
+              </div>
+            </div>
+
+            {/* CSV Upload */}
+            {entryMethod === 'csv' && (
+              <>
+                <div
+                  {...getRootProps()}
+                  className={`
+                    border-2 border-dashed rounded-lg p-12 text-center cursor-pointer transition-colors
+                    ${isDragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
+                    ${uploadedFile ? 'border-primary bg-primary/5' : ''}
+                  `}
+                >
+                  <input {...getInputProps()} />
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  {uploadedFile ? (
+                    <div>
+                      <FileText className="h-8 w-8 mx-auto mb-2 text-primary" />
+                      <p className="font-medium">{uploadedFile.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {copy.upload.step1.acceptedFormats}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-lg font-medium mb-2">
+                        {isDragActive ? 'Drop your CSV file here' : 'Drag and drop your CSV file'}
+                      </p>
+                      <p className="text-muted-foreground mb-4">
+                        {copy.upload.step1.acceptedFormats}
+                      </p>
+                      <Button variant="outline">
+                        Choose File
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div>
-                  <p className="text-lg font-medium mb-2">
-                    {isDragActive ? 'Drop your CSV file here' : 'Drag and drop your CSV file'}
-                  </p>
-                  <p className="text-muted-foreground mb-4">
-                    {copy.upload.step1.acceptedFormats}
-                  </p>
-                  <Button variant="outline">
-                    Choose File
+                
+                <div className="mt-6 text-center">
+                  <Button variant="link" onClick={downloadSampleCSV}>
+                    <Download className="h-4 w-4 mr-2" />
+                    {copy.upload.step1.sampleCsv}
                   </Button>
                 </div>
-              )}
-            </div>
-            
-            <div className="mt-6 text-center">
-              <Button variant="link" onClick={downloadSampleCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                {copy.upload.step1.sampleCsv}
-              </Button>
-            </div>
+              </>
+            )}
+
+            {/* Manual Entry */}
+            {entryMethod === 'manual' && (
+              <ManualInvoiceForm onSuccess={handleManualSubmit} />
+            )}
           </CardContent>
         </Card>
       )}
@@ -525,20 +582,37 @@ export default function UploadPage() {
           <CardHeader>
             <CardTitle className="flex items-center">
               <CheckCircle className="h-5 w-5 text-emerald-600 mr-2" />
-              {copy.upload.step4.title}
+              {entryMethod === 'manual' ? 'Manual Entry Complete' : copy.upload.step4.title}
             </CardTitle>
-            <CardDescription>{copy.upload.step4.description}</CardDescription>
+            <CardDescription>
+              {entryMethod === 'manual' 
+                ? 'Your invoices have been created successfully!' 
+                : copy.upload.step4.description
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="text-center py-8">
               <CheckCircle className="h-16 w-16 text-emerald-600 mx-auto mb-4" />
-              <p className="text-lg font-medium mb-2">Ready to import!</p>
-              <p className="text-muted-foreground mb-6">
-                {csvData.length} invoices will be imported and analyzed.
+              <p className="text-lg font-medium mb-2">
+                {entryMethod === 'manual' ? 'Invoices Created!' : 'Ready to import!'}
               </p>
-              <Button onClick={handleSubmit} disabled={importMutation.isPending}>
-                {importMutation.isPending ? 'Importing...' : 'Import Invoices'}
-              </Button>
+              <p className="text-muted-foreground mb-6">
+                {entryMethod === 'manual' 
+                  ? 'Your invoices have been added to the system.' 
+                  : `${csvData.length} invoices will be imported and analyzed.`
+                }
+              </p>
+              {entryMethod === 'csv' && (
+                <Button onClick={handleSubmit} disabled={importMutation.isPending}>
+                  {importMutation.isPending ? 'Importing...' : 'Import Invoices'}
+                </Button>
+              )}
+              {entryMethod === 'manual' && (
+                <Button onClick={() => router.push('/app/dashboard')}>
+                  Go to Dashboard
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -556,7 +630,10 @@ export default function UploadPage() {
         </Button>
         
         {currentStep < 4 && (
-          <Button onClick={handleNext}>
+          <Button 
+            onClick={handleNext}
+            disabled={currentStep === 1 && entryMethod === 'csv' && !uploadedFile}
+          >
             Next
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>

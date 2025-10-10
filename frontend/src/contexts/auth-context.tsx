@@ -2,6 +2,9 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
+/**
+ * User interface representing authenticated user data
+ */
 interface User {
   id: string;
   email: string;
@@ -9,6 +12,13 @@ interface User {
   company?: string;
 }
 
+/**
+ * Authentication context interface providing:
+ * - User state management
+ * - JWT token handling
+ * - Login/logout functionality
+ * - Loading states
+ */
 interface AuthContextType {
   user: User | null;
   token: string | null;
@@ -18,13 +28,30 @@ interface AuthContextType {
   loading: boolean;
 }
 
+// Create authentication context with undefined default
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Authentication Provider Component
+ * 
+ * Manages global authentication state including:
+ * - JWT token storage and validation
+ * - User session persistence
+ * - Login/logout operations
+ * - Automatic token refresh
+ * 
+ * Features:
+ * - localStorage persistence
+ * - Automatic session restoration
+ * - Error handling for auth failures
+ * - Loading states for async operations
+ */
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Initialize authentication state on component mount
   useEffect(() => {
     // Check for stored token on mount
     const storedToken = localStorage.getItem('auth_token');

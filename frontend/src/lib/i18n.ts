@@ -1,8 +1,8 @@
 export const copy = {
   // Landing page
   hero: {
-    title: "Pay Early or Hold Cash? Make the Right Call on Every Invoice.",
-    subtitle: "Stop guessing. Start optimizing. Our AI analyzes your invoices against today's interest rates to show you exactly which discounts to take.",
+    title: "Smart Invoice Decisions: Pay Early, Hold Cash, or Borrow?",
+    subtitle: "Get three-scenario financial analysis for every invoice. Input your rates and let our AI show you the optimal decision with real-time calculations.",
     cta: {
       tryDemo: "Try Demo",
       signUp: "Sign Up",

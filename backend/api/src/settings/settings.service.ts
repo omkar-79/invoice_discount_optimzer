@@ -5,6 +5,9 @@ export interface UserSettingsData {
   // Financial Settings
   safetyBuffer?: number;
   defaultCurrency?: string;
+  defaultInvestmentRate?: number;
+  defaultBorrowingRate?: number;
+  defaultRateType?: 'INVESTMENT' | 'BORROWING';
   
   // Notification Settings
   emailSummary?: boolean;
@@ -75,5 +78,14 @@ export class SettingsService {
     // This would need proper password hashing and verification
     // For now, just a placeholder
     throw new Error('Password change not implemented yet');
+  }
+
+  async getDefaultRates(userId: string) {
+    const settings = await this.getUserSettings(userId);
+    return {
+      defaultInvestmentRate: settings.defaultInvestmentRate,
+      defaultBorrowingRate: settings.defaultBorrowingRate,
+      defaultRateType: settings.defaultRateType
+    };
   }
 }

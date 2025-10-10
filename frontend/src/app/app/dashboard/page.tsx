@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,10 +23,39 @@ import { RECOMMENDATION_COLORS } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 
+/**
+ * Helper function to parse discount percentage from invoice terms
+ * Handles formats like "2/10 net 30" and extracts the discount percentage
+ * @param terms - Invoice terms string (e.g., "2/10 net 30")
+ * @returns Discount percentage as number
+ */
+const parseDiscountPercentage = (terms: string): number => {
+  // Handle formats like "2/10 net 30" - extract the first number as discount percentage
+  const match = terms.match(/(\d+)\/\d+/);
+  return match ? parseInt(match[1]) : 0;
+};
+
+/**
+ * Dashboard Page Component
+ * 
+ * Main dashboard displaying:
+ * - Action queue with invoice recommendations
+ * - Savings tracker with historical data
+ * - Cash plan with weekly projections
+ * - Analytics charts and statistics
+ * 
+ * Features:
+ * - Real-time data fetching with React Query
+ * - Interactive invoice selection and actions
+ * - Search and filtering capabilities
+ * - Responsive design for all screen sizes
+ */
 export default function DashboardPage() {
+  // State management for UI interactions
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortBy, setSortBy] = useState<"apr" | "deadline">("apr");
+  const router = useRouter();
   
   const { data: rateData, isLoading: rateLoading } = useTodayRate();
   const { data: invoicesData, isLoading: invoicesLoading } = useInvoices();
@@ -46,6 +76,10 @@ export default function DashboardPage() {
     if (invoicesData?.items) {
       setSelectedInvoices(invoicesData.items.map(inv => inv.id));
     }
+  };
+
+  const handleUploadClick = () => {
+    router.push('/app/upload');
   };
 
   const clearSelection = () => {
@@ -144,7 +178,7 @@ export default function DashboardPage() {
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
-          <Button>
+          <Button onClick={handleUploadClick}>
             <Upload className="h-4 w-4 mr-2" />
             Upload CSV
           </Button>
@@ -154,36 +188,6 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Today's Benchmark */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2" />
-                {copy.dashboard.benchmark.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold">
-                    {rateLoading ? "..." : formatPercentage(rateData?.benchmark.annualRatePct || 0)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {copy.dashboard.benchmark.rate}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">
-                    {copy.dashboard.benchmark.delta}
-                  </div>
-                  <div className="text-sm font-medium text-emerald-600">
-                    {rateData?.benchmark.deltaBpsDay && rateData.benchmark.deltaBpsDay > 0 ? '+' : ''}
-                    {rateData?.benchmark.deltaBpsDay || 0} bps
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Action Queue */}
           <Card>
@@ -224,7 +228,7 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground mb-4">
                     {searchTerm ? "Try adjusting your search terms" : "All invoices have been processed or upload a CSV to get started"}
                   </p>
-                  <Button>
+                  <Button onClick={handleUploadClick}>
                     <Upload className="h-4 w-4 mr-2" />
                     Upload CSV
                   </Button>
@@ -268,36 +272,119 @@ export default function DashboardPage() {
                       <div
                         key={invoice.id}
                         className={`
-                          flex items-center space-x-4 p-4 border rounded-lg cursor-pointer transition-colors
+                          border rounded-lg transition-colors
                           ${isSelected ? 'bg-primary/5 border-primary' : 'hover:bg-muted/50'}
                         `}
-                        onClick={() => toggleInvoiceSelection(invoice.id)}
                       >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleInvoiceSelection(invoice.id)}
-                          className="h-4 w-4"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <div className="font-medium">{invoice.vendor}</div>
-                            <div className="text-lg font-bold">{formatCurrency(invoice.amount)}</div>
+                        {/* Invoice Header */}
+                        <div className="flex items-center space-x-4 p-4 border-b">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleInvoiceSelection(invoice.id)}
+                            className="h-4 w-4"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium">{invoice.vendor}</div>
+                              <div className="text-lg font-bold">{formatCurrency(invoice.amount)}</div>
+                            </div>
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
+                              <span>{invoice.terms}</span>
+                              <span>•</span>
+                              <span>Due {formatDate(invoice.dueDate)}</span>
+                              {invoice.userRate && (
+                                <>
+                                  <span>•</span>
+                                  <span>{invoice.rateType} @ {formatPercentage(invoice.userRate)}</span>
+                                </>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
-                            <span>{invoice.terms}</span>
-                            <span>•</span>
-                            <span>Due {formatDate(invoice.dueDate)}</span>
+                          <div className="text-right">
+                            <div className="text-lg font-bold">{formatPercentage(invoice.impliedAprPct)}</div>
+                            <Badge 
+                              variant="outline" 
+                              className={RECOMMENDATION_COLORS[invoice.recommendation]}
+                            >
+                              {invoice.recommendation}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-lg font-bold">{formatPercentage(invoice.impliedAprPct)}</div>
-                          <Badge 
-                            variant="outline" 
-                            className={RECOMMENDATION_COLORS[invoice.recommendation]}
-                          >
-                            {invoice.recommendation}
-                          </Badge>
+
+                        {/* Recommended Action - Show only what user should do */}
+                        <div className="p-4">
+                          {invoice.recommendation === 'TAKE' && (
+                            <div className="p-4 rounded-lg border-2 border-green-200 bg-green-50">
+                              <div className="flex items-center mb-2">
+                                <span className="text-2xl mr-2">💰</span>
+                                <div className="font-medium text-lg text-green-800">Pay Early</div>
+                              </div>
+                              <div className="text-xl font-bold text-green-600 mb-2">
+                                Save: {formatCurrency(invoice.amount * (parseDiscountPercentage(invoice.terms) / 100))}
+                              </div>
+                              <div className="text-sm text-green-700">
+                                Use your own cash to get the discount
+                              </div>
+                            </div>
+                          )}
+
+                          {invoice.recommendation === 'BORROW' && (
+                            <div className="p-4 rounded-lg border-2 border-orange-200 bg-orange-50">
+                              <div className="flex items-center mb-2">
+                                <span className="text-2xl mr-2">💳</span>
+                                <div className="font-medium text-lg text-orange-800">Borrow to Pay Early</div>
+                              </div>
+                              <div className="text-xl font-bold text-orange-600 mb-2">
+                                Net Benefit: {formatCurrency((invoice.amount * (parseDiscountPercentage(invoice.terms) / 100)) - (invoice.borrowingCost || 0))}
+                              </div>
+                              <div className="text-sm text-orange-700">
+                                Borrow money to get the discount
+                              </div>
+                              <div className="text-xs text-gray-600 mt-1">
+                                Cost: {formatCurrency(invoice.borrowingCost || 0)} | Save: {formatCurrency(invoice.amount * (parseDiscountPercentage(invoice.terms) / 100))}
+                              </div>
+                            </div>
+                          )}
+
+                          {invoice.recommendation === 'HOLD' && (
+                            <div className="p-4 rounded-lg border-2 border-blue-200 bg-blue-50">
+                              <div className="flex items-center mb-2">
+                                <span className="text-2xl mr-2">📈</span>
+                                <div className="font-medium text-lg text-blue-800">Hold Cash</div>
+                              </div>
+                              {invoice.rateType === 'INVESTMENT' && invoice.investmentReturn ? (
+                                <>
+                                  <div className="text-xl font-bold text-blue-600 mb-2">
+                                    Earn: {formatCurrency(invoice.investmentReturn)}
+                                  </div>
+                                  <div className="text-sm text-blue-700">
+                                    Invest your cash elsewhere for better returns
+                                  </div>
+                                  <div className="text-xs text-gray-600 mt-1">
+                                    Rate: {formatPercentage(invoice.userRate || 0)}
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-xl font-bold text-blue-600 mb-2">
+                                    Pay on Due Date
+                                  </div>
+                                  <div className="text-sm text-blue-700">
+                                    No discount available or not worth taking
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Recommendation Highlight */}
+                          <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                            <div>
+                              <div className="font-medium">Recommendation: {invoice.recommendation}</div>
+                              <div className="text-sm text-gray-600 mt-1">{invoice.reason}</div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );

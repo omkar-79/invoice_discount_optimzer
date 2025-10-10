@@ -2,10 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import { RatesService } from '../rates/rates.service';
 import { parseTerms } from './terms.parser';
-import { impliedAprPct, discountDeadline, recommend, isDiscountDeadlinePassed, daysUntilDeadline, getUrgencyStatus } from './calculator';
+import { impliedAprPct, discountDeadline, recommend, recommendWithScenarios, isDiscountDeadlinePassed, daysUntilDeadline, getUrgencyStatus } from './calculator';
 import { parseCsv } from './csv.parser';
 import { Prisma } from '@prisma/client';
 
+/**
+ * InvoicesService handles all invoice-related operations including:
+ * - CSV import and parsing
+ * - Financial calculations and recommendations
+ * - User-specific data filtering
+ * - Recommendation updates based on current rates
+ */
 @Injectable()
 export class InvoicesService {
   constructor(
@@ -13,13 +20,27 @@ export class InvoicesService {
     private rates: RatesService,
   ) {}
 
+  /**
+   * Imports invoices from CSV file and processes them with financial recommendations
+   * @param fileBuf - CSV file buffer
+   * @param userId - User ID for data isolation
+   * @returns Object with import statistics
+   */
   async importCsv(fileBuf: Buffer, userId: string) {
     const rows = await parseCsv(fileBuf);
     const rate = await this.rates.getToday();
+    
+    // Get user's default settings for rate preferences
+    const userSettings = await this.prisma.userSettings.findUnique({
+      where: { userId }
+    });
+    
     let imported = 0, skipped = 0;
 
+    // Process each row in the CSV file
     for (const r of rows) {
       try {
+        // Parse and validate invoice data
         const amount = Number(r.amount);
         const terms = parseTerms(r.terms);
         if (!terms) throw new Error('Invalid terms');
@@ -27,7 +48,20 @@ export class InvoicesService {
         const dueDate = new Date(r.due_date);
         const implied = impliedAprPct(terms);
         const dd = discountDeadline(invDate, terms.discountDays);
-        const rec = recommend(implied, rate.annualRatePct, 200); // 200 bps buffer
+        
+        // Determine user rate: CSV data takes precedence over user defaults
+        const userRate = r.user_rate ? Number(r.user_rate) : (userSettings?.defaultInvestmentRate || 5.0);
+        const rateType = r.rate_type || userSettings?.defaultRateType || 'INVESTMENT';
+        
+        // Calculate recommendation using three-scenario analysis
+        const rec = recommendWithScenarios(
+          amount,
+          terms.discountPct,
+          terms.discountDays,
+          terms.netDays,
+          userRate,
+          rateType as 'INVESTMENT' | 'BORROWING'
+        );
 
         await this.prisma.invoice.create({
           data: {
@@ -41,9 +75,13 @@ export class InvoicesService {
             terms: r.terms,
             discountDeadline: dd,
             impliedAprPct: implied,
-            recommendation: rec.rec as 'TAKE' | 'HOLD',
+            recommendation: rec.rec as 'TAKE' | 'HOLD' | 'BORROW',
             reason: rec.reason,
             status: 'PENDING',
+            userRate,
+            rateType: rateType as 'INVESTMENT' | 'BORROWING',
+            borrowingCost: rec.scenarios.borrow || undefined,
+            investmentReturn: rec.scenarios.hold || undefined,
           },
         });
         imported++;
@@ -54,9 +92,15 @@ export class InvoicesService {
     return { imported, skipped };
   }
 
+  /**
+   * Retrieves paginated list of invoices for a specific user
+   * @param params - Query parameters including status filter, limit, and cursor
+   * @param userId - User ID for data isolation
+   * @returns Paginated invoice list with cursor for next page
+   */
   async list(params: { status?: string; limit: number; cursor?: string }, userId: string) {
     const { status, limit, cursor } = params;
-    const where: any = { userId }; // Filter by user
+    const where: any = { userId }; // Filter by user for data isolation
     if (status) where.status = status as any;
     
     const items = await this.prisma.invoice.findMany({
@@ -73,7 +117,15 @@ export class InvoicesService {
     return { items, nextCursor };
   }
 
-  /** Update recommendations based on today's date and current rates */
+  /**
+   * Updates recommendations for all pending invoices based on current date and rates
+   * This method recalculates recommendations when:
+   * - Discount deadlines have passed
+   * - User rates have changed
+   * - Current date affects calculations
+   * @param userId - User ID for data isolation
+   * @returns Number of invoices updated
+   */
   async updateRecommendations(userId: string) {
     const currentRate = await this.rates.getToday();
     const invoices = await this.prisma.invoice.findMany({
@@ -82,8 +134,10 @@ export class InvoicesService {
 
     const updates: Array<{
       id: string;
-      recommendation: 'TAKE' | 'HOLD';
+      recommendation: 'TAKE' | 'HOLD' | 'BORROW';
       reason: string;
+      borrowingCost?: number;
+      investmentReturn?: number;
     }> = [];
     
     for (const invoice of invoices) {
@@ -98,10 +152,28 @@ export class InvoicesService {
           reason: 'Discount deadline has passed - no discount available'
         });
       } else {
-        // Recalculate with current rate
+        // Recalculate with user's rate if available
         const terms = parseTerms(invoice.terms);
-        if (terms) {
-          const implied = impliedAprPct(terms);
+        if (terms && invoice.userRate && invoice.rateType) {
+          const rec = recommendWithScenarios(
+            Number(invoice.amount),
+            terms.discountPct,
+            terms.discountDays,
+            terms.netDays,
+            invoice.userRate,
+            invoice.rateType as 'INVESTMENT' | 'BORROWING'
+          );
+          
+          updates.push({
+            id: invoice.id,
+            recommendation: rec.rec as 'TAKE' | 'HOLD' | 'BORROW',
+            reason: rec.reason,
+            borrowingCost: rec.scenarios.borrow || undefined,
+            investmentReturn: rec.scenarios.hold || undefined
+          });
+        } else {
+          // Fallback to old logic if no user rate
+          const implied = impliedAprPct(terms!);
           const rec = recommend(implied, currentRate.annualRatePct, 200);
           
           updates.push({
@@ -119,11 +191,74 @@ export class InvoicesService {
         where: { id: update.id },
         data: {
           recommendation: update.recommendation,
-          reason: update.reason
+          reason: update.reason,
+          ...(update.borrowingCost !== undefined && { borrowingCost: update.borrowingCost }),
+          ...(update.investmentReturn !== undefined && { investmentReturn: update.investmentReturn })
         }
       });
     }
 
     return { updated: updates.length };
+  }
+
+  /** Update invoice rate and recalculate recommendation */
+  async updateInvoiceRate(invoiceId: string, userRate: number, rateType: 'INVESTMENT' | 'BORROWING', userId: string) {
+    // First, verify the invoice belongs to the user
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, userId }
+    });
+
+    if (!invoice) {
+      throw new Error('Invoice not found or access denied');
+    }
+
+    // Parse terms to get discount details
+    const terms = parseTerms(invoice.terms);
+    if (!terms) {
+      throw new Error('Invalid invoice terms');
+    }
+
+    // Recalculate with new rate
+    const rec = recommendWithScenarios(
+      Number(invoice.amount),
+      terms.discountPct,
+      terms.discountDays,
+      terms.netDays,
+      userRate,
+      rateType
+    );
+
+    // Update the invoice
+    const updatedInvoice = await this.prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        userRate,
+        rateType,
+        recommendation: rec.rec as 'TAKE' | 'HOLD' | 'BORROW',
+        reason: rec.reason,
+        borrowingCost: rec.scenarios.borrow || undefined,
+        investmentReturn: rec.scenarios.hold || undefined,
+      }
+    });
+
+    return {
+      id: updatedInvoice.id,
+      vendor: updatedInvoice.vendor,
+      invoiceNumber: updatedInvoice.invoiceNumber,
+      amount: Number(updatedInvoice.amount),
+      currency: updatedInvoice.currency,
+      invoiceDate: updatedInvoice.invoiceDate.toISOString().split('T')[0],
+      dueDate: updatedInvoice.dueDate.toISOString().split('T')[0],
+      terms: updatedInvoice.terms,
+      discountDeadline: updatedInvoice.discountDeadline?.toISOString().split('T')[0],
+      impliedAprPct: updatedInvoice.impliedAprPct,
+      recommendation: updatedInvoice.recommendation,
+      reason: updatedInvoice.reason,
+      status: updatedInvoice.status,
+      userRate: updatedInvoice.userRate,
+      rateType: updatedInvoice.rateType,
+      borrowingCost: updatedInvoice.borrowingCost,
+      investmentReturn: updatedInvoice.investmentReturn,
+    };
   }
 }

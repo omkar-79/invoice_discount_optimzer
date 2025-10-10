@@ -16,24 +16,40 @@ import {
   PasswordChangeData
 } from "@/lib/types"
 
+// API base URL configuration - defaults to localhost for development
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080/api"
 
-// Helper function to get auth headers
+/**
+ * Helper function to get authentication headers for API requests
+ * Retrieves JWT token from localStorage and formats Authorization header
+ * @returns Object with Authorization header or empty object if no token
+ */
 const getAuthHeaders = (): Record<string, string> => {
   const token = localStorage.getItem('auth_token');
   return token ? { 'Authorization': `Bearer ${token}` } : {};
 };
 
-// Real API functions
+/**
+ * API functions for communicating with the backend
+ * All functions include proper error handling and type safety
+ */
 const api = {
-  // Rates
+  // ===== RATES API =====
+  /**
+   * Fetches today's benchmark interest rate
+   * Used for comparison with invoice discount rates
+   */
   getTodayRate: async (): Promise<Rate> => {
     const response = await fetch(`${API_BASE_URL}/rates/today`)
     if (!response.ok) throw new Error('Failed to fetch rate')
     return response.json()
   },
 
-  // Invoices
+  // ===== INVOICES API =====
+  /**
+   * Fetches paginated list of invoices with optional filtering
+   * Supports status filtering, pagination, and search
+   */
   getInvoices: async (filters?: DashboardFilters): Promise<InvoiceResponse> => {
     const params = new URLSearchParams()
     if (filters?.status) params.append('status', filters.status)
@@ -118,6 +134,23 @@ const api = {
               headers: getAuthHeaders(),
             })
             if (!response.ok) throw new Error('Failed to update recommendations')
+            return response.json()
+          },
+
+          // Update invoice rate
+          updateInvoiceRate: async (invoiceId: string, data: { 
+            userRate: number; 
+            rateType: 'INVESTMENT' | 'BORROWING' 
+          }): Promise<Invoice> => {
+            const response = await fetch(`${API_BASE_URL}/invoices/${invoiceId}/rate`, {
+              method: 'PATCH',
+              headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(data),
+            })
+            if (!response.ok) throw new Error('Failed to update invoice rate')
             return response.json()
           },
 
@@ -268,6 +301,24 @@ export const useUpdateRecommendations = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] })
       // Updating recommendations may affect analytics aggregates
+      queryClient.invalidateQueries({ queryKey: ["analytics", "savings-tracker"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "cash-plan"] })
+      queryClient.invalidateQueries({ queryKey: ["analytics", "dashboard-stats"] })
+    },
+  })
+}
+
+export const useUpdateInvoiceRate = () => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }: { 
+      id: string; 
+      data: { userRate: number; rateType: 'INVESTMENT' | 'BORROWING' } 
+    }) => api.updateInvoiceRate(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] })
+      // Updating rates may affect analytics aggregates
       queryClient.invalidateQueries({ queryKey: ["analytics", "savings-tracker"] })
       queryClient.invalidateQueries({ queryKey: ["analytics", "cash-plan"] })
       queryClient.invalidateQueries({ queryKey: ["analytics", "dashboard-stats"] })

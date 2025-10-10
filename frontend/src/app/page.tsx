@@ -81,22 +81,30 @@ export default function LandingPage() {
             <CardHeader>
               <CardTitle className="text-center">Example: {EXAMPLE_CALCULATION.terms} on ${EXAMPLE_CALCULATION.amount.toLocaleString()}</CardTitle>
               <CardDescription className="text-center">
-                Saves ${EXAMPLE_CALCULATION.savings}; that's ~{EXAMPLE_CALCULATION.impliedApr}% annualized vs today's {EXAMPLE_CALCULATION.benchmark}% rate.
+                Three-scenario analysis showing the best financial decision for your situation.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className="text-2xl font-bold text-emerald-600">${EXAMPLE_CALCULATION.savings}</div>
-                  <div className="text-sm text-muted-foreground">Savings</div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-4 rounded-lg border border-emerald-200 bg-emerald-50">
+                  <div className="text-2xl font-bold text-emerald-600 mb-2">${EXAMPLE_CALCULATION.scenarios.payEarly}</div>
+                  <div className="text-sm font-medium text-emerald-800 mb-1">Pay Early</div>
+                  <div className="text-xs text-emerald-600">Use your own cash</div>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-blue-600">{EXAMPLE_CALCULATION.impliedApr}%</div>
-                  <div className="text-sm text-muted-foreground">Implied APR</div>
+                <div className="text-center p-4 rounded-lg border border-blue-200 bg-blue-50">
+                  <div className="text-2xl font-bold text-blue-600 mb-2">${EXAMPLE_CALCULATION.scenarios.holdCash}</div>
+                  <div className="text-sm font-medium text-blue-800 mb-1">Hold Cash</div>
+                  <div className="text-xs text-blue-600">Invest elsewhere</div>
                 </div>
-                <div>
-                  <div className="text-2xl font-bold text-gray-600">{EXAMPLE_CALCULATION.benchmark}%</div>
-                  <div className="text-sm text-muted-foreground">Benchmark Rate</div>
+                <div className="text-center p-4 rounded-lg border border-orange-200 bg-orange-50">
+                  <div className="text-2xl font-bold text-orange-600 mb-2">${EXAMPLE_CALCULATION.scenarios.borrowToPay}</div>
+                  <div className="text-sm font-medium text-orange-800 mb-1">Borrow to Pay</div>
+                  <div className="text-xs text-orange-600">Borrow money</div>
+                </div>
+              </div>
+              <div className="mt-6 text-center">
+                <div className="text-sm text-muted-foreground">
+                  Implied APR: {EXAMPLE_CALCULATION.impliedApr}% | Your Rate: {EXAMPLE_CALCULATION.benchmark}%
                 </div>
               </div>
             </CardContent>
@@ -160,22 +168,67 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Security & Privacy */}
+      {/* Key Features Highlight */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto max-w-6xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-bold mb-4">Why Choose Our Platform?</h2>
+            <p className="text-xl text-muted-foreground">Advanced financial analysis with complete user control</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <Card className="text-center">
+              <CardHeader>
+                <Calculator className="h-12 w-12 text-primary mx-auto mb-4" />
+                <CardTitle>Three-Scenario Analysis</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Compare Pay Early, Hold Cash, and Borrow to Pay Early options with precise calculations.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardHeader>
+                <TrendingUp className="h-12 w-12 text-primary mx-auto mb-4" />
+                <CardTitle>Custom Rate Input</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Input your own investment or borrowing rates for personalized recommendations.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="text-center">
+              <CardHeader>
+                <DollarSign className="h-12 w-12 text-primary mx-auto mb-4" />
+                <CardTitle>Real-Time Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground">
+                  Track potential savings, cash flow, and ROI with interactive charts and reports.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
+      {/* Security & Privacy */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
         <div className="container mx-auto max-w-4xl text-center">
           <Shield className="h-16 w-16 text-primary mx-auto mb-6" />
           <h2 className="text-3xl font-bold mb-4">Security & Privacy</h2>
           <p className="text-xl text-muted-foreground mb-8">
-            No bank logins required. We only analyze invoice headers and never store your card or bank information.
+            Secure JWT authentication with complete data isolation. No bank logins required.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <Badge variant="outline" className="px-4 py-2">
               <CheckCircle className="h-4 w-4 mr-2" />
-              No Bank Access
+              JWT Authentication
             </Badge>
             <Badge variant="outline" className="px-4 py-2">
               <CheckCircle className="h-4 w-4 mr-2" />
-              Invoice Headers Only
+              Data Isolation
             </Badge>
             <Badge variant="outline" className="px-4 py-2">
               <CheckCircle className="h-4 w-4 mr-2" />
@@ -189,9 +242,9 @@ export default function LandingPage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary text-primary-foreground">
         <div className="container mx-auto max-w-4xl text-center">
           <Zap className="h-16 w-16 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold mb-4">Ready to Optimize Your Cash Flow?</h2>
+          <h2 className="text-3xl font-bold mb-4">Ready to Make Smart Financial Decisions?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Start making data-driven decisions on every invoice today.
+            Get three-scenario analysis for every invoice with your custom rates. Start optimizing your cash flow today.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" asChild>
@@ -201,7 +254,7 @@ export default function LandingPage() {
               </Link>
             </Button>
             <Button size="lg" variant="outline" className="bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground hover:text-primary" asChild>
-              <Link href="/auth/sign-up">Get Started</Link>
+              <Link href="/auth/sign-up">Get Started Free</Link>
             </Button>
           </div>
         </div>

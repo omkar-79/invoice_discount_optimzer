@@ -9,6 +9,8 @@ export type RawRow = {
   due_date: string; 
   terms: string; 
   currency?: string;
+  user_rate?: string;
+  rate_type?: string;
 };
 
 export async function parseCsv(buffer: Buffer): Promise<RawRow[]> {

@@ -34,13 +34,16 @@ const PreferencesSchema = z.object({
   safetyBuffer: z.number().min(0).max(1000),
   emailSummary: z.boolean(),
   currency: z.string(),
+  defaultInvestmentRate: z.number().min(0).max(50).optional(),
+  defaultBorrowingRate: z.number().min(0).max(50).optional(),
+  defaultRateType: z.enum(['INVESTMENT', 'BORROWING']).optional(),
 });
 
 type ProfileData = z.infer<typeof ProfileSchema>;
 type PreferencesData = z.infer<typeof PreferencesSchema>;
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<"profile" | "organization" | "preferences">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "organization" | "preferences" | "rates">("profile");
   const { user } = useAuth();
   
   // API hooks
@@ -64,6 +67,9 @@ export default function SettingsPage() {
       safetyBuffer: settings?.safetyBuffer || 50,
       emailSummary: settings?.emailSummary || true,
       currency: settings?.defaultCurrency || "USD",
+      defaultInvestmentRate: settings?.defaultInvestmentRate || 5.0,
+      defaultBorrowingRate: settings?.defaultBorrowingRate || 8.0,
+      defaultRateType: settings?.defaultRateType || "INVESTMENT",
     },
   });
 
@@ -74,6 +80,9 @@ export default function SettingsPage() {
         safetyBuffer: settings.safetyBuffer,
         emailSummary: settings.emailSummary,
         currency: settings.defaultCurrency,
+        defaultInvestmentRate: settings.defaultInvestmentRate || 5.0,
+        defaultBorrowingRate: settings.defaultBorrowingRate || 8.0,
+        defaultRateType: settings.defaultRateType || "INVESTMENT",
       });
     }
   }, [settings, preferencesForm]);
@@ -104,6 +113,7 @@ export default function SettingsPage() {
     { id: "profile", label: "Profile", icon: User },
     { id: "organization", label: "Organization", icon: Building },
     { id: "preferences", label: "Preferences", icon: SettingsIcon },
+    { id: "rates", label: "Default Rates", icon: DollarSign },
   ];
 
   return (
@@ -442,6 +452,120 @@ export default function SettingsPage() {
                   <Button type="submit" disabled={updateSettingsMutation.isPending}>
                     <Save className="h-4 w-4 mr-2" />
                     {updateSettingsMutation.isPending ? "Saving..." : "Save Preferences"}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Rates Tab */}
+          {activeTab === "rates" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <DollarSign className="h-5 w-5 mr-2" />
+                  Default Rates
+                </CardTitle>
+                <CardDescription>
+                  Set default investment and borrowing rates for new invoices
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={preferencesForm.handleSubmit(onPreferencesSubmit)} className="space-y-6">
+                  <div className="space-y-4">
+                    <h3 className="font-medium flex items-center">
+                      <DollarSign className="h-4 w-4 mr-2" />
+                      Default Rate Settings
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="default-investment-rate">Default Investment Rate (%)</Label>
+                          <Input
+                            id="default-investment-rate"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="50"
+                            {...preferencesForm.register("defaultInvestmentRate", { valueAsNumber: true })}
+                            className={preferencesForm.formState.errors.defaultInvestmentRate ? "border-destructive" : ""}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Expected annual return if you hold cash instead of paying early
+                          </p>
+                          {preferencesForm.formState.errors.defaultInvestmentRate && (
+                            <p className="text-sm text-destructive">
+                              {preferencesForm.formState.errors.defaultInvestmentRate.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="default-borrowing-rate">Default Borrowing Rate (%)</Label>
+                          <Input
+                            id="default-borrowing-rate"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="50"
+                            {...preferencesForm.register("defaultBorrowingRate", { valueAsNumber: true })}
+                            className={preferencesForm.formState.errors.defaultBorrowingRate ? "border-destructive" : ""}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Annual interest rate if you borrow money to pay early
+                          </p>
+                          {preferencesForm.formState.errors.defaultBorrowingRate && (
+                            <p className="text-sm text-destructive">
+                              {preferencesForm.formState.errors.defaultBorrowingRate.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Default Rate Type</Label>
+                          <div className="space-y-2">
+                            <label className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                value="INVESTMENT"
+                                {...preferencesForm.register("defaultRateType")}
+                                className="form-radio"
+                              />
+                              <span className="text-sm">Investment Rate</span>
+                            </label>
+                            <label className="flex items-center space-x-2">
+                              <input
+                                type="radio"
+                                value="BORROWING"
+                                {...preferencesForm.register("defaultRateType")}
+                                className="form-radio"
+                              />
+                              <span className="text-sm">Borrowing Rate</span>
+                            </label>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Which rate type to use by default for new invoices
+                          </p>
+                        </div>
+
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <h4 className="font-medium text-blue-900 mb-2">How it works:</h4>
+                          <ul className="text-sm text-blue-800 space-y-1">
+                            <li>• <strong>Investment Rate:</strong> Compare discount savings vs. earning returns on cash</li>
+                            <li>• <strong>Borrowing Rate:</strong> Compare discount savings vs. cost of borrowing to pay early</li>
+                            <li>• These defaults apply to new invoices unless overridden</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button type="submit" disabled={updateSettingsMutation.isPending}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {updateSettingsMutation.isPending ? "Saving..." : "Save Default Rates"}
                   </Button>
                 </form>
               </CardContent>

@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Query, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, Query, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoicesService } from './invoices.service';
 import { RatesService } from '../rates/rates.service';
@@ -52,6 +52,10 @@ export class InvoicesController {
       recommendation: invoice.recommendation,
       reason: invoice.reason,
       status: invoice.status,
+      userRate: invoice.userRate,
+      rateType: invoice.rateType,
+      borrowingCost: invoice.borrowingCost,
+      investmentReturn: invoice.investmentReturn,
     }));
 
     return { items, nextCursor: result.nextCursor };
@@ -60,6 +64,16 @@ export class InvoicesController {
   @Post('update-recommendations')
   async updateRecommendations(@User() user: any) {
     const result = await this.invoicesService.updateRecommendations(user.id);
+    return result;
+  }
+
+  @Patch(':id/rate')
+  async updateInvoiceRate(
+    @Param('id') id: string,
+    @Body() body: { userRate: number; rateType: 'INVESTMENT' | 'BORROWING' },
+    @User() user: { id: string }
+  ) {
+    const result = await this.invoicesService.updateInvoiceRate(id, body.userRate, body.rateType, user.id);
     return result;
   }
 }

@@ -44,6 +44,10 @@ model Invoice {
   recommendation   Recommendation
   reason           String
   status           InvoiceStatus @default(PENDING)
+  userRate         Float?   // User's investment or borrowing rate (annual %)
+  rateType         RateType? // 'INVESTMENT' or 'BORROWING'
+  borrowingCost    Float?   // Calculated borrowing cost if applicable
+  investmentReturn Float?   // Calculated investment return if holding
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
@@ -69,6 +73,9 @@ model UserSettings {
   // Financial Settings
   safetyBuffer          Int      @default(50) // basis points
   defaultCurrency       String   @default("USD")
+  defaultInvestmentRate Float?   // Default annual investment rate %
+  defaultBorrowingRate  Float?   // Default annual borrowing rate %
+  defaultRateType       RateType? @default(INVESTMENT)
   
   // Notification Settings
   emailSummary          Boolean  @default(true)
@@ -88,9 +95,15 @@ model UserSettings {
   updatedAt             DateTime @updatedAt
 }
 
+enum RateType {
+  INVESTMENT
+  BORROWING
+}
+
 enum Recommendation {
   TAKE
   HOLD
+  BORROW
 }
 
 enum InvoiceStatus {
