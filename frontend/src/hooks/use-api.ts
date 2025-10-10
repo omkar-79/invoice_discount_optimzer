@@ -64,12 +64,17 @@ const api = {
   },
 
   importInvoices: async (formData: FormData): Promise<{ imported: number; skipped: number }> => {
+    // Note: Do NOT set Content-Type for FormData; browser will set multipart boundary
     const response = await fetch(`${API_BASE_URL}/invoices/import`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: formData,
     })
-    if (!response.ok) throw new Error('Failed to import invoices')
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '')
+      // Surface status and server message to help debug 500s in prod
+      throw new Error(`Failed to import invoices (status ${response.status}): ${errorText}`)
+    }
     return response.json()
   },
 

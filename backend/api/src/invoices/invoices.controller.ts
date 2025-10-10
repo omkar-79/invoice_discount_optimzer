@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Patch, Param, Body, Query, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Patch, Param, Body, Query, UseInterceptors, UploadedFile, UseGuards, Logger } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InvoicesService } from './invoices.service';
 import { RatesService } from '../rates/rates.service';
@@ -22,8 +22,17 @@ export class InvoicesController {
     if (!file) {
       throw new Error('No file uploaded');
     }
-    
+    // Debug log: request metadata
+    Logger.log(
+      `Import request received: userId=${user?.id} filename=${file.originalname} size=${file.size} bytes mimetype=${file.mimetype}`,
+      InvoicesController.name,
+    );
+
     const result = await this.invoicesService.importCsv(file.buffer, user.id);
+    Logger.log(
+      `Import completed: userId=${user?.id} imported=${result.imported} skipped=${result.skipped}`,
+      InvoicesController.name,
+    );
     return result;
   }
 

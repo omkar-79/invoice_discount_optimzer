@@ -27,8 +27,11 @@ export class InvoicesService {
    * @returns Object with import statistics
    */
   async importCsv(fileBuf: Buffer, userId: string) {
+    // Debug: high-level import start
     const rows = await parseCsv(fileBuf);
     const rate = await this.rates.getToday();
+    const totalRows = rows.length;
+    console.log(`[InvoicesService] importCsv: userId=${userId} rows=${totalRows} todayRate=${rate?.annualRatePct}`);
     
     // Get user's default settings for rate preferences
     const userSettings = await this.prisma.userSettings.findUnique({
@@ -85,10 +88,20 @@ export class InvoicesService {
           },
         });
         imported++;
-      } catch {
+        // Row-level success log (limited fields for PII safety)
+        console.log(
+          `[InvoicesService] row imported: vendor=${r.vendor} invoice=${r.invoice_number} amount=${amount} rec=${rec.rec} rateType=${rateType} userRate=${userRate}`
+        );
+      } catch (err: any) {
         skipped++;
+        // Row-level error with safe context
+        console.error(
+          `[InvoicesService] row failed: vendor=${r?.vendor} invoice=${r?.invoice_number} reason=${err?.message}`,
+          err?.stack || err
+        );
       }
     }
+    console.log(`[InvoicesService] import complete: userId=${userId} imported=${imported} skipped=${skipped} rows=${totalRows}`);
     return { imported, skipped };
   }
 
