@@ -29,9 +29,8 @@ export class InvoicesService {
   async importCsv(fileBuf: Buffer, userId: string) {
     // Debug: high-level import start
     const rows = await parseCsv(fileBuf);
-    const rate = await this.rates.getToday();
     const totalRows = rows.length;
-    console.log(`[InvoicesService] importCsv: userId=${userId} rows=${totalRows} todayRate=${rate?.annualRatePct}`);
+    console.log(`[InvoicesService] importCsv: userId=${userId} rows=${totalRows}`);
     
     // Get user's default settings for rate preferences
     const userSettings = await this.prisma.userSettings.findUnique({
@@ -140,7 +139,6 @@ export class InvoicesService {
    * @returns Number of invoices updated
    */
   async updateRecommendations(userId: string) {
-    const currentRate = await this.rates.getToday();
     const invoices = await this.prisma.invoice.findMany({
       where: { userId, status: 'PENDING' }
     });
@@ -185,14 +183,11 @@ export class InvoicesService {
             investmentReturn: rec.scenarios.hold || undefined
           });
         } else {
-          // Fallback to old logic if no user rate
-          const implied = impliedAprPct(terms!);
-          const rec = recommend(implied, currentRate.annualRatePct, 200);
-          
+          // If no user rate is set, prefer HOLD without external benchmarks
           updates.push({
             id: invoice.id,
-            recommendation: rec.rec as 'TAKE' | 'HOLD',
-            reason: rec.reason
+            recommendation: 'HOLD',
+            reason: 'No user rate provided; holding cash by default'
           });
         }
       }
