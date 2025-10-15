@@ -33,8 +33,7 @@ export default function InvoicesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [recommendationFilter, setRecommendationFilter] = useState<string>("all");
-  const [minAprFilter, setMinAprFilter] = useState<string>("");
-  const [sortBy, setSortBy] = useState<"vendor" | "amount" | "deadline" | "apr">("apr");
+  const [sortBy, setSortBy] = useState<"vendor" | "amount" | "deadline">("deadline");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedInvoice, setSelectedInvoice] = useState<string | null>(null);
 
@@ -68,10 +67,6 @@ export default function InvoicesPage() {
         return false;
       }
       
-      // Min APR filter
-      if (minAprFilter && invoice.impliedAprPct < parseFloat(minAprFilter)) {
-        return false;
-      }
       
       return true;
     })
@@ -89,9 +84,6 @@ export default function InvoicesPage() {
         const aDate = a.discountDeadline ? new Date(a.discountDeadline).getTime() : 0;
         const bDate = b.discountDeadline ? new Date(b.discountDeadline).getTime() : 0;
         comparison = aDate - bDate;
-        break;
-      case "apr":
-        comparison = a.impliedAprPct - b.impliedAprPct;
         break;
     }
     
@@ -184,7 +176,7 @@ export default function InvoicesPage() {
           <p className="text-muted-foreground mb-4">
             Please log in to view your invoices.
           </p>
-          <Button onClick={() => window.location.href = '/auth/sign-in'} className="btn-solid-blue">
+          <Button onClick={() => window.location.href = '/auth/sign-in'} variant="default">
             Sign In
           </Button>
         </div>
@@ -203,7 +195,7 @@ export default function InvoicesPage() {
           <p className="text-muted-foreground mb-4">
             {error.message || 'Failed to fetch invoices'}
           </p>
-          <Button onClick={() => window.location.reload()} className="btn-solid-red">
+          <Button onClick={() => window.location.reload()} variant="destructive">
             Try Again
           </Button>
         </div>
@@ -222,7 +214,7 @@ export default function InvoicesPage() {
           </p>
         </div>
         <div className="flex items-center space-x-4">
-          <Button variant="outline" className="btn-outline-blue">
+          <Button variant="outline">
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -281,15 +273,6 @@ export default function InvoicesPage() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Min APR (%)</label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={minAprFilter}
-                onChange={(e) => setMinAprFilter(e.target.value)}
-              />
-            </div>
           </div>
 
           <div className="flex items-center justify-between mt-4">
@@ -304,7 +287,6 @@ export default function InvoicesPage() {
                     <SelectItem value="vendor">Vendor</SelectItem>
                     <SelectItem value="amount">Amount</SelectItem>
                     <SelectItem value="deadline">Discount Deadline</SelectItem>
-                    <SelectItem value="apr">APR</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -346,7 +328,6 @@ export default function InvoicesPage() {
                     <th className="text-right p-4 font-medium">Amount</th>
                     <th className="text-left p-4 font-medium">Terms</th>
                     <th className="text-left p-4 font-medium">Deadline</th>
-                    <th className="text-right p-4 font-medium">APR</th>
                     <th className="text-center p-4 font-medium">Status</th>
                     <th className="text-center p-4 font-medium">Recommendation</th>
                     <th className="text-center p-4 font-medium">Actions</th>
@@ -374,11 +355,6 @@ export default function InvoicesPage() {
                         </td>
                         <td className="p-4">
                           <span className="text-sm">{formatDate(invoice.discountDeadline)}</span>
-                        </td>
-                        <td className="p-4 text-right">
-                          <span className="font-medium">
-                            {formatPercentage(invoice.impliedAprPct)}
-                          </span>
                         </td>
                         <td className="p-4 text-center">
                           <div className="flex items-center justify-center space-x-2">
@@ -507,10 +483,6 @@ export default function InvoicesPage() {
                     <div className="border-t pt-6">
                       <h3 className="font-medium mb-4">Calculation Details</h3>
                       <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span>Implied APR:</span>
-                          <span className="font-medium">{formatPercentage(invoice.impliedAprPct)}</span>
-                        </div>
                         <div className="flex justify-between">
                           <span>Benchmark Rate:</span>
                           <span className="font-medium">5.1%</span>

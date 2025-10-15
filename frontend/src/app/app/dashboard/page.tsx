@@ -9,19 +9,20 @@ import { Input } from "@/components/ui/input";
 import { 
   TrendingUp, 
   DollarSign, 
-  Clock, 
   CheckCircle,
   Upload,
   Filter,
   Download,
-  ArrowUpDown,
-  Search
+  Search,
+  RefreshCw
 } from "lucide-react";
-import { useInvoices, useUpdateRecommendations, useSavingsTracker, useCashPlan, useDashboardStats } from "@/hooks/use-api";
+import { useInvoices, useUpdateRecommendations, useSavingsTracker, useDashboardStats, useCreateDecision } from "@/hooks/use-api";
 import { formatCurrency, formatPercentage, formatDate } from "@/lib/utils";
 import { RECOMMENDATION_COLORS } from "@/lib/constants";
 import { copy } from "@/lib/i18n";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { Decision } from "@/lib/types";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { useToast } from "@/components/ui/use-toast";
 
 /**
  * Helper function to parse discount percentage from invoice terms
@@ -41,7 +42,6 @@ const parseDiscountPercentage = (terms: string): number => {
  * Main dashboard displaying:
  * - Action queue with invoice recommendations
  * - Savings tracker with historical data
- * - Cash plan with weekly projections
  * - Analytics charts and statistics
  * 
  * Features:
@@ -54,15 +54,15 @@ export default function DashboardPage() {
   // State management for UI interactions
   const [selectedInvoices, setSelectedInvoices] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"apr" | "deadline">("apr");
   const router = useRouter();
   
   // Rate fetching removed; users provide their own rates
   const { data: invoicesData, isLoading: invoicesLoading } = useInvoices();
   const { data: savingsData, isLoading: savingsLoading } = useSavingsTracker();
-  const { data: cashPlanData, isLoading: cashPlanLoading } = useCashPlan();
   const { data: dashboardStats, isLoading: statsLoading } = useDashboardStats();
   const updateRecommendationsMutation = useUpdateRecommendations();
+  const createDecisionMutation = useCreateDecision();
+  const { toast } = useToast();
 
   const toggleInvoiceSelection = (invoiceId: string) => {
     setSelectedInvoices(prev => 
@@ -94,6 +94,34 @@ export default function DashboardPage() {
     }
   };
 
+  const handleApproveSelected = async () => {
+    if (selectedInvoices.length === 0) return;
+    
+    try {
+      const decision: Decision = {
+        invoiceIds: selectedInvoices,
+        action: "APPROVE_TAKE",
+        note: "Approved from dashboard"
+      };
+      
+      const result = await createDecisionMutation.mutateAsync(decision);
+      setSelectedInvoices([]); // Clear selection after successful approval
+      
+      toast({
+        title: "Invoices Approved!",
+        description: `Successfully approved ${result.saved} invoices with estimated savings of ${formatCurrency(result.estimatedSavings)}`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error('Failed to approve selected invoices:', error);
+      toast({
+        title: "Approval Failed",
+        description: "Failed to approve selected invoices. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const filteredInvoices = invoicesData?.items?.filter(invoice => {
     // Only show pending invoices
     if (invoice.status !== 'PENDING') return false;
@@ -108,14 +136,10 @@ export default function DashboardPage() {
   }) || [];
 
   const sortedInvoices = [...filteredInvoices].sort((a, b) => {
-    if (sortBy === "apr") {
-      return b.impliedAprPct - a.impliedAprPct;
-    } else {
-      // Handle null discountDeadline values
-      const aDate = a.discountDeadline ? new Date(a.discountDeadline).getTime() : 0;
-      const bDate = b.discountDeadline ? new Date(b.discountDeadline).getTime() : 0;
-      return aDate - bDate;
-    }
+    // Sort by deadline (earliest first)
+    const aDate = a.discountDeadline ? new Date(a.discountDeadline).getTime() : 0;
+    const bDate = b.discountDeadline ? new Date(b.discountDeadline).getTime() : 0;
+    return aDate - bDate;
   });
 
   const totalSavings = selectedInvoices.reduce((sum, id) => {
@@ -125,7 +149,6 @@ export default function DashboardPage() {
 
   // Use real data from API, fallback to empty arrays if loading
   const displaySavingsData = savingsData || [];
-  const displayCashPlanData = cashPlanData || [];
 
   if (invoicesLoading) {
     return (
@@ -171,7 +194,7 @@ export default function DashboardPage() {
             disabled={updateRecommendationsMutation.isPending}
             variant="outline"
           >
-            <Clock className="mr-2 h-4 w-4" />
+            <RefreshCw className="mr-2 h-4 w-4" />
             {updateRecommendationsMutation.isPending ? "Updating..." : "Update for Today"}
           </Button>
           <Button variant="outline">
@@ -209,14 +232,6 @@ export default function DashboardPage() {
                       className="pl-10 w-64"
                     />
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSortBy(sortBy === "apr" ? "deadline" : "apr")}
-                  >
-                    <ArrowUpDown className="h-4 w-4 mr-2" />
-                    Sort by {sortBy === "apr" ? "APR" : "Deadline"}
-                  </Button>
                 </div>
               </div>
             </CardHeader>
@@ -257,9 +272,12 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     {selectedInvoices.length > 0 && (
-                      <Button>
+                      <Button 
+                        onClick={handleApproveSelected}
+                        disabled={createDecisionMutation.isPending}
+                      >
                         <CheckCircle className="h-4 w-4 mr-2" />
-                        Approve Selected ({formatCurrency(totalSavings)})
+                        {createDecisionMutation.isPending ? "Approving..." : `Approve Selected (${formatCurrency(totalSavings)})`}
                       </Button>
                     )}
                   </div>
@@ -302,7 +320,6 @@ export default function DashboardPage() {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-lg font-bold">{formatPercentage(invoice.impliedAprPct)}</div>
                             <Badge 
                               variant="outline" 
                               className={RECOMMENDATION_COLORS[invoice.recommendation]}
@@ -442,33 +459,6 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Cash Plan */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Clock className="h-5 w-5 mr-2" />
-                {copy.dashboard.cashPlan.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-48">
-                {cashPlanLoading ? (
-                  <div className="animate-pulse bg-muted h-full rounded"></div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={displayCashPlanData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="week" />
-                      <YAxis />
-                      <Tooltip formatter={(value) => [formatCurrency(Number(value)), 'Amount']} />
-                      <Bar dataKey="take" stackId="a" fill="#10b981" name="Take Discount" />
-                      <Bar dataKey="hold" stackId="a" fill="#6b7280" name="Hold Cash" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>

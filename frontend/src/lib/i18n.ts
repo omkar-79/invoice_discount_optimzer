@@ -40,10 +40,6 @@ export const copy = {
       title: "Savings Tracker",
       thisMonth: "Saved this month",
     },
-    cashPlan: {
-      title: "Cash Plan",
-      weeklyOutflows: "Weekly Outflows",
-    },
   },
   
   // Upload
@@ -118,7 +114,6 @@ export const copy = {
       title: "Sign In",
       email: "Email",
       password: "Password",
-      magicLink: "Continue with magic link",
       forgotPassword: "Forgot password?",
     },
     signUp: {

@@ -68,52 +68,110 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'}/auth/login`;
     console.log('Login API URL:', apiUrl);
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-    console.log('Login response status:', response.status);
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Login error response:', errorText);
-      throw new Error('Login failed');
+      console.log('Login response status:', response.status);
+      
+      if (!response.ok) {
+        let errorMessage = 'Login failed';
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        
+        // Map specific error messages
+        if (response.status === 401) {
+          errorMessage = 'Invalid email or password. Please check your credentials and try again.';
+        } else if (response.status === 400) {
+          errorMessage = 'Please check your email and password format.';
+        } else if (response.status === 429) {
+          errorMessage = 'Too many login attempts. Please try again later.';
+        } else if (response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Network error. Please check your connection and try again.');
     }
-
-    const data = await response.json();
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem('auth_token', data.token);
-    localStorage.setItem('auth_user', JSON.stringify(data.user));
   };
 
   const register = async (name: string, email: string, password: string, company?: string) => {
     const apiUrl = `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/api'}/auth/register`;
     console.log('Register API URL:', apiUrl);
     
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name, email, password, company }),
-    });
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name, email, password, company }),
+      });
 
-    console.log('Register response status:', response.status);
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('Register error response:', errorText);
-      throw new Error('Registration failed');
+      console.log('Register response status:', response.status);
+      
+      if (!response.ok) {
+        let errorMessage = 'Registration failed';
+        
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch {
+          // If response is not JSON, use status text
+          errorMessage = response.statusText || errorMessage;
+        }
+        
+        // Map specific error messages
+        if (response.status === 400) {
+          if (errorMessage.includes('already exists')) {
+            errorMessage = 'An account with this email already exists. Please sign in instead.';
+          } else if (errorMessage.includes('validation')) {
+            errorMessage = 'Please check your information and try again.';
+          } else {
+            errorMessage = 'Please check your information and try again.';
+          }
+        } else if (response.status === 409) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (response.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const data = await response.json();
+      setUser(data.user);
+      setToken(data.token);
+      localStorage.setItem('auth_token', data.token);
+      localStorage.setItem('auth_user', JSON.stringify(data.user));
+    } catch (error) {
+      if (error instanceof Error) {
+        throw error;
+      }
+      throw new Error('Network error. Please check your connection and try again.');
     }
-
-    const data = await response.json();
-    setUser(data.user);
-    setToken(data.token);
-    localStorage.setItem('auth_token', data.token);
-    localStorage.setItem('auth_user', JSON.stringify(data.user));
   };
 
   const logout = () => {

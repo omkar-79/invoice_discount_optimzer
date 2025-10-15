@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { MagicLinkSchema, type MagicLinkData } from "@/lib/types";
+import { ForgotPasswordSchema, type ForgotPasswordData } from "@/lib/types";
 import { copy } from "@/lib/i18n";
 import { Calculator, ArrowLeft } from "lucide-react";
 
@@ -20,11 +20,11 @@ export default function ForgotPasswordPage() {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<MagicLinkData>({
-    resolver: zodResolver(MagicLinkSchema),
+  } = useForm<ForgotPasswordData>({
+    resolver: zodResolver(ForgotPasswordSchema),
   });
 
-  const onSubmit = async (data: MagicLinkData) => {
+  const onSubmit = async (data: ForgotPasswordData) => {
     setIsLoading(true);
     try {
       // Mock API call

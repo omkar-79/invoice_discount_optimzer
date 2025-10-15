@@ -11,47 +11,54 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SignInSchema, type SignInData } from "@/lib/types";
 import { copy } from "@/lib/i18n";
-import { Calculator, Eye, EyeOff } from "lucide-react";
+import { Calculator, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function SignInPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const router = useRouter();
   const { login } = useAuth();
+  const { toast } = useToast();
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    clearErrors,
   } = useForm<SignInData>({
     resolver: zodResolver(SignInSchema),
   });
 
   const onSubmit = async (data: SignInData) => {
     setIsLoading(true);
+    setLoginError(null);
+    clearErrors();
+    
     try {
       await login(data.email, data.password);
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
+        variant: "success",
+      });
       router.push("/app/dashboard");
     } catch (error) {
-      console.error("Sign in error:", error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      setLoginError(errorMessage);
+      
+      toast({
+        title: "Sign in failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleMagicLink = async (email: string) => {
-    setIsLoading(true);
-    try {
-      // Mock magic link
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      alert("Magic link sent to your email!");
-    } catch (error) {
-      console.error("Magic link error:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/20 p-4">
@@ -70,6 +77,13 @@ export default function SignInPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {loginError && (
+              <div className="mb-4 p-3 rounded-md bg-destructive/10 border border-destructive/20 flex items-start space-x-2">
+                <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-destructive">{loginError}</p>
+              </div>
+            )}
+            
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">{copy.auth.signIn.email}</Label>
@@ -79,9 +93,13 @@ export default function SignInPage() {
                   placeholder="you@company.com"
                   {...register("email")}
                   className={errors.email ? "border-destructive" : ""}
+                  onChange={() => setLoginError(null)}
                 />
                 {errors.email && (
-                  <p className="text-sm text-destructive">{errors.email.message}</p>
+                  <p className="text-sm text-destructive flex items-center space-x-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>{errors.email.message}</span>
+                  </p>
                 )}
               </div>
 
@@ -94,6 +112,7 @@ export default function SignInPage() {
                     placeholder="Enter your password"
                     {...register("password")}
                     className={errors.password ? "border-destructive" : ""}
+                    onChange={() => setLoginError(null)}
                   />
                   <Button
                     type="button"
@@ -110,7 +129,10 @@ export default function SignInPage() {
                   </Button>
                 </div>
                 {errors.password && (
-                  <p className="text-sm text-destructive">{errors.password.message}</p>
+                  <p className="text-sm text-destructive flex items-center space-x-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>{errors.password.message}</span>
+                  </p>
                 )}
               </div>
 
@@ -123,34 +145,11 @@ export default function SignInPage() {
                 </Link>
               </div>
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" variant="default" className="w-full" disabled={isLoading}>
                 {isLoading ? "Signing in..." : "Sign In"}
               </Button>
             </form>
 
-            <div className="mt-6">
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full mt-4"
-                onClick={() => {
-                  const email = (document.getElementById("email") as HTMLInputElement)?.value;
-                  if (email) handleMagicLink(email);
-                }}
-                disabled={isLoading}
-              >
-                {copy.auth.signIn.magicLink}
-              </Button>
-            </div>
 
             <div className="mt-6 text-center">
               <p className="text-sm text-muted-foreground">

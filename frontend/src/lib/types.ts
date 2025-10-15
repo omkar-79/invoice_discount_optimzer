@@ -2,24 +2,43 @@ import { z } from "zod"
 
 // Auth types
 export const SignInSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
+  password: z.string()
+    .min(1, "Password is required")
+    .min(6, "Password must be at least 6 characters"),
 })
 
 export const SignUpSchema = z.object({
-  name: z.string().min(2),
-  company: z.string().min(2),
-  email: z.string().email(),
-  password: z.string().min(6),
+  name: z.string()
+    .min(1, "Name is required")
+    .min(2, "Name must be at least 2 characters")
+    .max(50, "Name must be less than 50 characters"),
+  company: z.string()
+    .min(1, "Company is required")
+    .min(2, "Company name must be at least 2 characters")
+    .max(100, "Company name must be less than 100 characters"),
+  email: z.string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address")
+    .max(100, "Email must be less than 100 characters"),
+  password: z.string()
+    .min(1, "Password is required")
+    .min(6, "Password must be at least 6 characters")
+    .max(100, "Password must be less than 100 characters")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
 })
 
-export const MagicLinkSchema = z.object({
-  email: z.string().email(),
+export const ForgotPasswordSchema = z.object({
+  email: z.string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
 })
 
 export type SignInData = z.infer<typeof SignInSchema>
 export type SignUpData = z.infer<typeof SignUpSchema>
-export type MagicLinkData = z.infer<typeof MagicLinkSchema>
+export type ForgotPasswordData = z.infer<typeof ForgotPasswordSchema>
 
 // Settings types
 export interface UserSettings {

@@ -1,98 +1,239 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Invoice Discount Optimizer API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A Node.js/Express.js backend API for optimizing invoice discount decisions using PostgreSQL and Prisma ORM.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Tech Stack
 
-## Description
+- **Runtime**: Node.js 20
+- **Framework**: Express.js
+- **Database**: PostgreSQL
+- **ORM**: Prisma
+- **Authentication**: JWT with Passport.js
+- **File Upload**: Multer
+- **Logging**: Pino
+- **Validation**: express-validator
+- **Testing**: Jest + Supertest
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 📋 Features
 
-## Project setup
+- **User Authentication**: JWT-based auth with registration/login
+- **Invoice Management**: CSV import, financial calculations, recommendations
+- **Rate Integration**: Real-time FRED API integration for benchmark rates
+- **Decision Tracking**: Audit trail for all financial decisions
+- **Analytics**: Dashboard statistics and savings tracking
+- **File Upload**: CSV import with validation and parsing
+- **Error Handling**: Comprehensive PostgreSQL/Prisma error handling
 
-```bash
-$ npm install
-```
+## 🛠 Project Setup
 
-## Compile and run the project
+### Prerequisites
 
-```bash
-# development
-$ npm run start
+- Node.js 20+
+- PostgreSQL database
+- npm or yarn
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-```
-
-## Run tests
+### Installation
 
 ```bash
-# unit tests
-$ npm run test
+# Install dependencies
+npm install
 
-# e2e tests
-$ npm run test:e2e
+# Setup environment variables
+cp .env.example .env
+# Edit .env with your database URL and other settings
 
-# test coverage
-$ npm run test:cov
+# Generate Prisma client
+npx prisma generate
+
+# Run database migrations
+npx prisma migrate deploy
 ```
 
-## Deployment
+### Environment Variables
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/invoice_optimizer"
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+# JWT
+JWT_SECRET="your-super-secret-jwt-key"
+JWT_EXPIRES_IN="7d"
+
+# Server
+PORT=8080
+NODE_ENV="development"
+
+# FRED API (optional)
+FRED_API_KEY="your-fred-api-key"
+```
+
+## 🚀 Development
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Start development server with hot reload
+npm run dev
+
+# Build for production
+npm run build
+
+# Start production server
+npm start
+
+# Run tests
+npm test
+
+# Run e2e tests
+npm run test:e2e
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 📁 Project Structure
 
-## Resources
+```
+src/
+├── app.ts                    # Express app setup
+├── server.ts                 # Server entry point
+├── config/                   # Configuration
+│   └── index.ts
+├── middleware/               # Custom middleware
+│   ├── auth.middleware.ts    # JWT verification
+│   ├── error.middleware.ts   # Error handling
+│   └── logger.middleware.ts  # Pino logging
+├── routes/                   # Route handlers
+│   ├── auth.routes.ts
+│   ├── invoices.routes.ts
+│   ├── rates.routes.ts
+│   ├── decisions.routes.ts
+│   ├── chat.routes.ts
+│   ├── settings.routes.ts
+│   └── analytics.routes.ts
+├── services/                 # Business logic
+│   ├── auth.service.ts
+│   ├── invoices.service.ts
+│   ├── rates.service.ts
+│   ├── decisions.service.ts
+│   ├── chat.service.ts
+│   ├── settings.service.ts
+│   └── analytics.service.ts
+├── utils/                    # Utilities
+│   ├── calculator.ts
+│   ├── csv.parser.ts
+│   ├── terms.parser.ts
+│   └── fred.client.ts
+└── prisma.client.ts          # Prisma singleton
+```
 
-Check out a few resources that may come in handy when working with NestJS:
+## 🔌 API Endpoints
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+### Authentication
+- `POST /api/auth/register` - User registration
+- `POST /api/auth/login` - User login
 
-## Support
+### Invoices
+- `GET /api/invoices` - List invoices with filtering
+- `POST /api/invoices/import` - Import CSV file
+- `POST /api/invoices/update-recommendations` - Update recommendations
+- `PATCH /api/invoices/:id/rate` - Update invoice rate
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+### Rates
+- `GET /api/rates/today` - Get current benchmark rates
 
-## Stay in touch
+### Decisions
+- `POST /api/decisions` - Create decision batch
+- `GET /api/decisions/audit` - Get audit trail
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Analytics
+- `GET /api/analytics/dashboard-stats` - Dashboard statistics
+- `GET /api/analytics/savings-tracker` - Savings tracking
+- `GET /api/analytics/cash-plan` - Cash flow planning
 
-## License
+### Settings
+- `GET /settings` - Get user settings
+- `PUT /settings` - Update settings
+- `PUT /settings/profile` - Update profile
+- `POST /settings/change-password` - Change password
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Health
+- `GET /health` - Health check endpoint
+
+## 🗄 Database Schema
+
+The application uses PostgreSQL with Prisma ORM. Key models include:
+
+- **User**: User accounts with authentication
+- **Invoice**: Invoice data with financial calculations
+- **Decision**: Audit trail for user decisions
+- **UserSettings**: User preferences and configuration
+
+## 🧪 Testing
+
+```bash
+# Run unit tests
+npm test
+
+# Run e2e tests
+npm run test:e2e
+
+# Run tests with coverage
+npm run test:cov
+```
+
+## 🐳 Docker
+
+```bash
+# Build Docker image
+docker build -t invoice-optimizer-api .
+
+# Run with Docker Compose
+docker-compose up -d
+```
+
+## 📊 Error Handling
+
+The API includes comprehensive error handling for:
+
+- **Prisma Errors**: Database operation failures
+- **JWT Errors**: Authentication failures
+- **Validation Errors**: Input validation failures
+- **File Upload Errors**: CSV parsing and upload issues
+- **Network Errors**: External API failures
+
+## 🔒 Security
+
+- JWT-based authentication
+- Password hashing with bcrypt
+- CORS configuration
+- Input validation and sanitization
+- SQL injection protection via Prisma
+- File upload security with size limits
+
+## 📈 Performance
+
+- Connection pooling with Prisma
+- Efficient database queries
+- File upload streaming
+- Response compression
+- Structured logging with Pino
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Ensure all tests pass
+6. Submit a pull request
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🆘 Support
+
+For support and questions:
+- Create an issue in the repository
+- Check the API documentation
+- Review the error logs for debugging
+
+---
+
+Built with ❤️ using Node.js, Express.js, PostgreSQL, and Prisma.
