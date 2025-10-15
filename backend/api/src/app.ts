@@ -40,6 +40,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ECS health check endpoint
+app.get('/healthz', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/invoices', upload.single('file'), invoicesRoutes);
