@@ -1,123 +1,206 @@
 # Invoice Discount Optimizer
 
-A comprehensive SaaS web application that helps businesses optimize their cash flow by making intelligent decisions about invoice payments. The system analyzes whether to pay invoices early to capture discounts, hold cash for better investment returns, or borrow money to pay early when beneficial.
+> **A financial analysis platform for optimizing invoice payment decisions using three-scenario analysis with user-defined investment and borrowing rates.**
 
-## 🚀 Key Features
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
+[![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![AWS](https://img.shields.io/badge/AWS-232F3E?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 
-### 💰 Smart Financial Analysis
-- **Three-Scenario Analysis**: Pay Early, Hold Cash, or Borrow to Pay Early
-- **User-Defined Rates**: Input your own investment or borrowing rates
-- **Real-Time Calculations**: Dynamic recommendations based on current data
-- **Net Benefit Analysis**: Shows exact dollar amounts for each scenario
+## 📋 Table of Contents
 
-### 📊 Advanced Analytics
-- **Savings Tracker**: Monthly savings visualization with potential vs. actual
-- **Cash Plan**: Weekly cash flow planning with scenario breakdowns
-- **Dashboard Stats**: Real-time financial impact metrics
-- **Audit Trail**: Complete decision history with detailed reasoning
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Development](#development)
+- [Deployment](#deployment)
+- [API Documentation](#api-documentation)
+- [Financial Logic](#financial-logic)
+- [Contributing](#contributing)
+- [License](#license)
 
-### 🔐 Enterprise-Ready
-- **JWT Authentication**: Secure user sessions with role-based access
-- **User Isolation**: Complete data separation between users
-- **Settings Management**: Customizable default rates and preferences
-- **Manual Entry**: Direct invoice input in addition to CSV uploads
+## 🎯 Overview
+
+The Invoice Discount Optimizer is a sophisticated financial analysis platform that helps businesses make data-driven decisions about invoice payments. By analyzing three scenarios (Pay Early, Hold Cash, Borrow to Pay Early) with user-defined investment and borrowing rates, the platform provides clear recommendations to maximize financial returns.
+
+### Key Capabilities
+
+- **Three-Scenario Analysis**: Compare Pay Early vs Hold Cash vs Borrow to Pay Early
+- **Custom Rate Input**: Use your own investment or borrowing rates instead of generic benchmarks
+- **CSV Import & Manual Entry**: Bulk import invoices or add them individually
+- **Real-time Analytics**: Track savings, cash flow, and decision outcomes
+- **User Authentication**: Secure multi-tenant system with JWT authentication
+- **Audit Trail**: Complete history of all financial decisions
+
+## 🏗 Architecture
+
+### System Architecture
+
+```mermaid
+graph TB
+    subgraph "Frontend (Next.js)"
+        A[Landing Page] --> B[Dashboard]
+        B --> C[Invoice Management]
+        C --> D[Analytics]
+        D --> E[Settings]
+    end
+    
+    subgraph "Backend (NestJS)"
+        F[API Gateway] --> G[Auth Service]
+        F --> H[Invoice Service]
+        F --> I[Analytics Service]
+        F --> J[Settings Service]
+    end
+    
+    subgraph "Database (PostgreSQL)"
+        K[(User Data)]
+        L[(Invoice Data)]
+        M[(Decision History)]
+        N[(Settings)]
+    end
+    
+    subgraph "External Services"
+        O[FRED API<br/>Optional]
+    end
+    
+    subgraph "Infrastructure (AWS)"
+        P[ECS Fargate]
+        Q[Application Load Balancer]
+        R[RDS PostgreSQL]
+        S[ECR Container Registry]
+    end
+    
+    A --> Q
+    Q --> P
+    P --> F
+    G --> K
+    H --> L
+    I --> M
+    J --> N
+    H --> O
+```
+
+### Application Architecture
+
+```mermaid
+graph LR
+    subgraph "Frontend Layer"
+        A[React Components]
+        B[React Query]
+        C[Auth Context]
+        D[UI Components]
+    end
+    
+    subgraph "API Layer"
+        E[Controllers]
+        F[Guards & Middleware]
+        G[DTOs & Validation]
+    end
+    
+    subgraph "Business Logic"
+        H[Services]
+        I[Financial Calculator]
+        J[CSV Parser]
+    end
+    
+    subgraph "Data Layer"
+        K[Prisma ORM]
+        L[PostgreSQL]
+    end
+    
+    A --> E
+    B --> E
+    C --> F
+    E --> H
+    H --> I
+    H --> J
+    H --> K
+    K --> L
+```
+
+## ✨ Features
+
+### Core Features
+
+- **🎯 Smart Financial Analysis**: Three-scenario analysis with user-defined rates
+- **📊 Custom Rate Input**: Investment and borrowing rate preferences
+- **📁 CSV & Manual Entry**: Flexible invoice input methods
+- **📈 Real-Time Analytics**: Live dashboard with savings tracking
+- **🔐 User Authentication**: Secure JWT-based authentication
+- **📋 Audit Trail**: Complete decision history and tracking
+
+### Advanced Features
+
+- **🎨 Modern UI**: Built with Tailwind CSS and shadcn/ui components
+- **📱 Responsive Design**: Works seamlessly on desktop and mobile
+- **🌙 Dark Mode**: Theme switching support
+- **🤖 AI Chatbot**: Interactive financial guidance
+- **📊 Data Visualization**: Charts and graphs for financial insights
+- **🔒 Multi-tenant**: User data isolation and security
 
 ## 🛠 Tech Stack
 
 ### Frontend
-- **Framework**: Next.js 15 (App Router) + TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui components
-- **State Management**: React Query (TanStack Query) + Context API
-- **Forms**: React Hook Form + Zod validation
-- **Charts**: Recharts for data visualization
-- **Authentication**: JWT-based with secure token management
+- **Framework**: Next.js 14 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS + shadcn/ui
+- **State Management**: React Query (TanStack Query)
+- **Authentication**: JWT with React Context
+- **Deployment**: Vercel/AWS Amplify
 
 ### Backend
-- **Framework**: NestJS + TypeScript
+- **Framework**: NestJS (Node.js)
+- **Language**: TypeScript
 - **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: JWT with bcrypt password hashing
-- **API**: RESTful endpoints with comprehensive error handling
-- **Validation**: Class-validator with DTOs
-- **Migration**: Prisma migrations for schema management
+- **Authentication**: JWT with Passport.js
+- **File Processing**: Multer for CSV uploads
+- **Validation**: Class-validator
+- **Deployment**: AWS ECS Fargate
 
 ### Infrastructure
-- **Containerization**: Docker with multi-stage builds
-- **Cloud**: AWS ECS Fargate + RDS PostgreSQL
-- **CI/CD**: GitHub Actions with automated deployment
-- **Monitoring**: Health checks and logging
-- **Security**: Environment variables with AWS Secrets Manager
+- **Container Orchestration**: AWS ECS Fargate
+- **Load Balancer**: AWS Application Load Balancer
+- **Database**: AWS RDS PostgreSQL
+- **Container Registry**: AWS ECR
+- **CI/CD**: GitHub Actions
+- **Secrets Management**: AWS Secrets Manager
 
-## 📁 Project Structure
-
-```
-invoice_discount_optimzer/
-├── frontend/                    # Next.js frontend application
-│   ├── src/
-│   │   ├── app/                # Next.js App Router pages
-│   │   │   ├── (auth)/         # Authentication pages
-│   │   │   ├── app/           # Protected application pages
-│   │   │   └── demo/          # Demo mode
-│   │   ├── components/         # Reusable React components
-│   │   │   ├── ui/            # shadcn/ui components
-│   │   │   ├── manual-invoice-form.tsx
-│   │   │   └── protected-route.tsx
-│   │   ├── contexts/          # React contexts
-│   │   │   └── auth-context.tsx
-│   │   ├── hooks/             # Custom React hooks
-│   │   │   └── use-api.ts     # API integration with React Query
-│   │   └── lib/               # Utilities and constants
-│   │       ├── constants.ts   # App constants and enums
-│   │       ├── types.ts       # TypeScript definitions
-│   │       └── utils.ts       # Utility functions
-│   ├── package.json
-│   └── next.config.js
-├── backend/                    # NestJS backend application
-│   └── api/
-│       ├── src/
-│       │   ├── auth/          # Authentication module
-│       │   ├── invoices/      # Invoice management
-│       │   │   ├── calculator.ts      # Financial calculations
-│       │   │   ├── csv.parser.ts     # CSV parsing
-│       │   │   ├── terms.parser.ts    # Terms parsing
-│       │   │   ├── invoices.controller.ts
-│       │   │   └── invoices.service.ts
-│       │   ├── analytics/     # Analytics and reporting
-│       │   ├── settings/      # User settings management
-│       │   ├── rates/         # Interest rate management
-│       │   ├── decisions/     # Decision tracking
-│       │   └── prisma/        # Database schema and migrations
-│       ├── Dockerfile
-│       └── package.json
-├── .github/                    # GitHub Actions workflows
-│   └── workflows/
-│       └── deploy-api.yml     # CI/CD pipeline
-├── docker-compose.yml         # Local development setup
-└── README.md
-```
-
-## 🚀 Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
-- Node.js 18+
-- PostgreSQL 14+
-- Docker (optional, for containerized development)
 
-### Local Development Setup
+- Node.js 20+
+- PostgreSQL database
+- AWS CLI (for deployment)
+- Git
+
+### Local Development
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd invoice_discount_optimzer
+   git clone https://github.com/your-username/invoice_discount_optimizer.git
+   cd invoice_discount_optimizer
    ```
 
 2. **Backend Setup**
    ```bash
    cd backend/api
    npm install
+   
+   # Setup environment variables
    cp .env.example .env
-   # Configure DATABASE_URL in .env
-   npx prisma migrate dev
+   # Edit .env with your database URL and JWT secret
+   
+   # Generate Prisma client
    npx prisma generate
+   
+   # Run database migrations
+   npx prisma migrate dev
+   
+   # Start development server
    npm run start:dev
    ```
 
@@ -125,276 +208,227 @@ invoice_discount_optimzer/
    ```bash
    cd frontend
    npm install
+   
+   # Setup environment variables
    cp .env.example .env.local
-   # Configure NEXT_PUBLIC_API_BASE_URL in .env.local
+   # Edit .env.local with your API base URL
+   
+   # Start development server
    npm run dev
    ```
 
 4. **Access the application**
-   - Frontend: http://localhost:3001
-   - Backend API: http://localhost:8080
-   - Database Studio: http://localhost:5555 (if using Prisma Studio)
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8080/api
 
-### Docker Development
+## 🔧 Development
+
+### Project Structure
+
+```
+invoice_discount_optimizer/
+├── frontend/                 # Next.js frontend application
+│   ├── src/
+│   │   ├── app/             # App Router pages
+│   │   ├── components/      # Reusable UI components
+│   │   ├── contexts/        # React contexts
+│   │   ├── hooks/           # Custom React hooks
+│   │   └── lib/             # Utilities and types
+│   └── package.json
+├── backend/
+│   └── api/                 # NestJS backend API
+│       ├── src/
+│       │   ├── routes/      # API route handlers
+│       │   ├── services/    # Business logic
+│       │   ├── middleware/  # Custom middleware
+│       │   └── utils/       # Utility functions
+│       ├── prisma/          # Database schema and migrations
+│       └── package.json
+├── .github/
+│   └── workflows/           # GitHub Actions CI/CD
+└── README.md
+```
+
+### Available Scripts
+
+**Backend**
 ```bash
-docker-compose up -d
+npm run start:dev    # Start development server with hot reload
+npm run build        # Build for production
+npm run start        # Start production server
+npm run test         # Run unit tests
+npm run test:e2e     # Run end-to-end tests
 ```
 
-## 💡 Core Features
-
-### Financial Decision Engine
-
-The application uses sophisticated financial calculations to provide three-scenario analysis:
-
-#### 1. **Pay Early (TAKE)**
-- Uses your own cash to capture discount
-- Calculates exact savings amount
-- Compares against investment opportunity cost
-
-#### 2. **Hold Cash (HOLD)**
-- Invests cash elsewhere for better returns
-- Calculates potential investment earnings
-- Shows opportunity cost of taking discount
-
-#### 3. **Borrow to Pay Early (BORROW)**
-- Borrows money to capture discount
-- Calculates borrowing cost vs. discount savings
-- Shows net benefit of borrowing strategy
-
-### User Rate Configuration
-
-Users can input their own rates for more accurate recommendations:
-
-- **Investment Rate**: Annual return on alternative investments
-- **Borrowing Rate**: Cost of borrowing money
-- **Default Settings**: Set preferred rates for new invoices
-- **Per-Invoice Override**: Custom rates for specific invoices
-
-### Analytics Dashboard
-
-#### Savings Tracker
-- **Historical Data**: Past 6 months of actual savings
-- **Potential Savings**: Current recommendations impact
-- **Monthly Trends**: Visual savings progression
-- **ROI Analysis**: Return on investment calculations
-
-#### Cash Plan
-- **Weekly Cash Flow**: 4-week rolling cash plan
-- **Scenario Breakdown**: Take vs. Hold cash flow
-- **Current Week**: Includes pending recommendations
-- **Trend Analysis**: Cash flow patterns over time
-
-## 🔧 API Documentation
-
-### Authentication Endpoints
-```typescript
-POST /api/auth/register
-POST /api/auth/login
-POST /api/auth/refresh
+**Frontend**
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run type-check   # Run TypeScript type checking
 ```
 
-### Invoice Management
-```typescript
-GET /api/invoices?status=PENDING&limit=10
-POST /api/invoices/import
-PATCH /api/invoices/:id/rate
-POST /api/invoices/update-recommendations
+### Environment Variables
+
+**Backend (.env)**
+```env
+# Database
+DATABASE_URL="postgresql://username:password@localhost:5432/invoice_optimizer"
+
+# JWT
+JWT_SECRET="your-super-secret-jwt-key"
+JWT_EXPIRES_IN="7d"
+
+# Server
+PORT=8080
+NODE_ENV="development"
+
+# CORS
+CORS_ORIGINS="http://localhost:3000,https://your-frontend-domain.com"
+
+# FRED API (optional)
+FRED_API_KEY="your-fred-api-key"
 ```
 
-### Analytics
-```typescript
-GET /api/analytics/savings-tracker
-GET /api/analytics/cash-plan
-GET /api/analytics/dashboard-stats
-```
-
-### Settings
-```typescript
-GET /api/settings
-PUT /api/settings
-GET /api/settings/default-rates
-```
-
-## 🗄️ Database Schema
-
-### Core Models
-
-#### User
-```prisma
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  name         String
-  company      String?
-  passwordHash String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  invoices     Invoice[]
-  decisions    Decision[]
-  settings     UserSettings?
-}
-```
-
-#### Invoice
-```prisma
-model Invoice {
-  id               String   @id @default(cuid())
-  userId           String
-  vendor           String
-  invoiceNumber    String
-  amount           Decimal  @db.Decimal(14,2)
-  currency         String   @default("USD")
-  invoiceDate      DateTime
-  dueDate          DateTime
-  terms            String
-  discountDeadline DateTime?
-  impliedAprPct    Float
-  recommendation   Recommendation
-  reason           String
-  status           InvoiceStatus @default(PENDING)
-  userRate         Float?   // User's investment or borrowing rate
-  rateType         RateType? // 'INVESTMENT' or 'BORROWING'
-  borrowingCost    Float?   // Calculated borrowing cost
-  investmentReturn Float?   // Calculated investment return
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-```
-
-#### UserSettings
-```prisma
-model UserSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  safetyBuffer          Int      @default(200)
-  defaultCurrency       String   @default("USD")
-  defaultInvestmentRate     Float?
-  defaultBorrowingRate     Float?
-  defaultRateType          RateType? @default(INVESTMENT)
-  emailSummary            Boolean @default(true)
-  urgentDeadlineAlerts    Boolean @default(true)
-  rateChangeAlerts        Boolean @default(true)
-  twoFactorEnabled        Boolean @default(false)
-  sessionTimeout          Int      @default(30)
-  organizationName        String?
-  organizationDomain      String?
-  organizationSize        String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
-}
+**Frontend (.env.local)**
+```env
+NEXT_PUBLIC_API_BASE_URL="http://localhost:8080/api"
 ```
 
 ## 🚀 Deployment
 
 ### AWS Deployment
 
-The application is designed for deployment on AWS with the following architecture:
+The application is deployed on AWS using ECS Fargate with the following architecture:
 
-#### Backend (ECS Fargate)
-- **Container**: Docker image stored in ECR
-- **Compute**: ECS Fargate for serverless containers
-- **Database**: RDS PostgreSQL with Aurora
-- **Load Balancer**: Application Load Balancer
-- **Secrets**: AWS Secrets Manager for sensitive data
+1. **GitHub Actions** builds and pushes Docker images to ECR
+2. **ECS Fargate** runs the containerized application
+3. **Application Load Balancer** handles traffic routing and SSL termination
+4. **RDS PostgreSQL** provides managed database services
 
-#### Frontend (Vercel/Amplify)
-- **Hosting**: Vercel or AWS Amplify
-- **CDN**: Global content delivery
-- **SSL**: Automatic HTTPS certificates
-- **Environment**: Production environment variables
+### Deployment Process
 
-#### CI/CD Pipeline
-- **GitHub Actions**: Automated build and deployment
-- **Docker Build**: Multi-stage optimized builds
-- **ECR Push**: Automatic image updates
-- **ECS Update**: Rolling deployments
+1. **Push to dev branch** triggers automatic deployment
+2. **Docker image** is built and pushed to ECR
+3. **ECS service** is updated with new task definition
+4. **Prisma migrations** are automatically applied
+5. **Health checks** ensure successful deployment
 
-### Environment Variables
+### Manual Deployment
 
-#### Backend (.env)
-```env
-DATABASE_URL=postgresql://user:password@host:port/database
-JWT_SECRET=your-jwt-secret
-FRED_API_KEY=your-fred-api-key
-FRED_SERIES_CODE=DGS3MO
-NODE_ENV=production
-PORT=8080
-CORS_ORIGINS=https://your-frontend-domain.com
-```
-
-#### Frontend (.env.local)
-```env
-NEXT_PUBLIC_API_BASE_URL=https://your-backend-domain.com/api
-```
-
-## 📊 Financial Calculations
-
-### Discount Analysis
-```typescript
-// Implied APR calculation
-APR = (discount% / (1 - discount%)) × (365 / days) × 100
-
-// Example: 2/10 net 30
-// APR = (2% / (1 - 2%)) × (365 / 20) × 100 = 37.24%
-```
-
-### Recommendation Logic
-```typescript
-// Investment scenario
-if (discountSavings > investmentReturn) {
-  return 'TAKE'
-} else {
-  return 'HOLD'
-}
-
-// Borrowing scenario
-if (netBenefit > 0) {
-  return 'BORROW'
-} else {
-  return 'HOLD'
-}
-```
-
-## 🔒 Security Features
-
-- **JWT Authentication**: Secure token-based authentication
-- **Password Hashing**: bcrypt with salt rounds
-- **User Isolation**: Complete data separation
-- **Input Validation**: Comprehensive data validation
-- **CORS Protection**: Configured cross-origin policies
-- **Environment Security**: Sensitive data in environment variables
-
-## 📈 Performance Optimizations
-
-- **Database Indexing**: Optimized queries with proper indexes
-- **React Query**: Efficient data fetching and caching
-- **Docker Multi-stage**: Optimized container builds
-- **Prisma Connection Pooling**: Efficient database connections
-- **Frontend Code Splitting**: Lazy loading of components
-
-## 🧪 Testing
-
-### Backend Testing
 ```bash
-cd backend/api
-npm run test
-npm run test:e2e
+# Build and push Docker image
+docker build -t your-ecr-repo:latest ./backend/api
+docker push your-ecr-repo:latest
+
+# Update ECS service
+aws ecs update-service --cluster your-cluster --service your-service --force-new-deployment
 ```
 
-### Frontend Testing
-```bash
-cd frontend
-npm run test
-npm run test:e2e
+## 📚 API Documentation
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | User registration |
+| POST | `/api/auth/login` | User login |
+
+### Invoice Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/invoices` | List invoices with filtering |
+| POST | `/api/invoices/import` | Import CSV file |
+| PATCH | `/api/invoices/:id/rate` | Update invoice rate |
+| POST | `/api/invoices/update-recommendations` | Update recommendations |
+
+### Analytics Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/analytics/dashboard-stats` | Dashboard statistics |
+| GET | `/api/analytics/savings-tracker` | Savings tracking |
+| GET | `/api/analytics/cash-plan` | Cash flow planning |
+
+### Settings Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/settings` | Get user settings |
+| PUT | `/api/settings` | Update settings |
+| PUT | `/api/settings/profile` | Update profile |
+
+## 💰 Financial Logic
+
+### Three-Scenario Analysis
+
+The platform analyzes three scenarios for each invoice:
+
+1. **Pay Early (TAKE)**: Use cash to get the discount
+2. **Hold Cash (HOLD)**: Keep cash invested and pay at net terms
+3. **Borrow to Pay Early (BORROW)**: Borrow money to get the discount
+
+### Calculation Logic
+
+```typescript
+// Example calculation
+const discountSavings = amount * (discountPct / 100);
+const investmentReturn = amount * (annualRate / 365 / 100) * discountDays;
+const borrowingCost = amount * (borrowingRate / 365 / 100) * (netDays - discountDays);
+
+// Recommendation logic
+if (rateType === 'INVESTMENT') {
+  if (discountSavings > investmentReturn) return 'TAKE';
+  else return 'HOLD';
+} else {
+  const netBenefit = discountSavings - borrowingCost;
+  if (netBenefit > 0) return 'BORROW';
+  else return 'HOLD';
+}
 ```
+
+### Key Metrics
+
+- **Implied APR**: Annual percentage rate of the discount
+- **Discount Savings**: Dollar amount saved by paying early
+- **Investment Return**: Potential earnings from holding cash
+- **Borrowing Cost**: Cost of borrowing to pay early
+- **Net Benefit**: Net financial benefit of the recommended action
 
 ## 🤝 Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+We welcome contributions! Please follow these guidelines:
+
+### Development Workflow
+
+1. **Fork** the repository
+2. **Create** a feature branch from `dev`
+3. **Make** your changes with proper tests
+4. **Commit** with conventional commit messages
+5. **Push** to your fork
+6. **Create** a pull request to `dev` branch
+
+### Code Standards
+
+- **TypeScript**: Strict type checking enabled
+- **ESLint**: Follow the configured linting rules
+- **Prettier**: Consistent code formatting
+- **Tests**: Write tests for new functionality
+- **Documentation**: Update docs for API changes
+
+### Commit Convention
+
+```
+feat: add new feature
+fix: bug fix
+docs: documentation changes
+style: formatting changes
+refactor: code refactoring
+test: add or update tests
+chore: maintenance tasks
+```
 
 ## 📄 License
 
@@ -402,21 +436,29 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-For support and questions:
-- Open an issue in the repository
-- Contact the development team
-- Check the documentation wiki
+### Getting Help
 
-## 🎯 Roadmap
+- **Documentation**: Check this README and inline code comments
+- **Issues**: Create a GitHub issue for bugs or feature requests
+- **Discussions**: Use GitHub Discussions for questions
+- **Email**: Contact the maintainers for urgent issues
 
-### Upcoming Features
-- [ ] Advanced reporting and exports
-- [ ] Multi-currency support
-- [ ] API rate limiting
-- [ ] Advanced user permissions
-- [ ] Mobile application
-- [ ] Integration with accounting software
+### Common Issues
+
+1. **Database Connection**: Ensure PostgreSQL is running and DATABASE_URL is correct
+2. **JWT Errors**: Check JWT_SECRET is set and consistent
+3. **CORS Issues**: Verify CORS_ORIGINS includes your frontend URL
+4. **Import Failures**: Check CSV format and required fields
+
+### Performance Tips
+
+- Use database indexes for frequently queried fields
+- Implement pagination for large datasets
+- Cache frequently accessed data
+- Monitor ECS task health and scaling
 
 ---
 
-**Built with ❤️ using Next.js, NestJS, TypeScript, and PostgreSQL**
+**Built with ❤️ using Next.js, NestJS, PostgreSQL, and AWS**
+
+*For more detailed technical documentation, see the inline code comments and API documentation.*
