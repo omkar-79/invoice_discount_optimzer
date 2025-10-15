@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Next.js](https://img.shields.io/badge/Next.js-000000?logo=next.js&logoColor=white)](https://nextjs.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
+[![Express.js](https://img.shields.io/badge/Express.js-000000?logo=express&logoColor=white)](https://expressjs.com/)
 [![AWS](https://img.shields.io/badge/AWS-232F3E?logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
 
 ## 📋 Table of Contents
@@ -37,6 +37,19 @@ The Invoice Discount Optimizer is a sophisticated financial analysis platform th
 
 ## 🏗 Architecture
 
+### Current Architecture
+
+The application follows a modern microservices-inspired architecture with clear separation of concerns:
+
+- **Frontend**: Next.js 14 with App Router, deployed on Vercel
+- **Backend**: Express.js API server, deployed on AWS ECS Fargate
+- **Database**: PostgreSQL with Prisma ORM, hosted on AWS RDS
+- **Authentication**: JWT-based with Passport.js middleware
+- **File Processing**: Multer for CSV uploads and processing
+- **Logging**: Structured logging with Pino
+- **Validation**: express-validator for request validation
+- **Deployment**: Automated CI/CD with GitHub Actions
+
 ### System Architecture
 
 ```mermaid
@@ -48,11 +61,11 @@ graph TB
         D --> E[Settings]
     end
     
-    subgraph "Backend (NestJS)"
-        F[API Gateway] --> G[Auth Service]
-        F --> H[Invoice Service]
-        F --> I[Analytics Service]
-        F --> J[Settings Service]
+    subgraph "Backend (Express.js)"
+        F[Express Server] --> G[Auth Routes]
+        F --> H[Invoice Routes]
+        F --> I[Analytics Routes]
+        F --> J[Settings Routes]
     end
     
     subgraph "Database (PostgreSQL)"
@@ -62,9 +75,6 @@ graph TB
         N[(Settings)]
     end
     
-    subgraph "External Services"
-        O[FRED API<br/>Optional]
-    end
     
     subgraph "Infrastructure (AWS)"
         P[ECS Fargate]
@@ -80,7 +90,67 @@ graph TB
     H --> L
     I --> M
     J --> N
-    H --> O
+```
+
+### Backend Architecture
+
+```mermaid
+graph TB
+    subgraph "Express.js Server"
+        A[app.ts - Express App Setup]
+        B[server.ts - Server Bootstrap]
+        C[config/ - Environment Config]
+    end
+    
+    subgraph "Middleware Layer"
+        D[Auth Middleware - JWT Verification]
+        E[Error Middleware - Global Error Handling]
+        F[Logger Middleware - Pino HTTP Logging]
+    end
+    
+    subgraph "Route Layer"
+        G[Auth Routes - Login/Register]
+        H[Invoice Routes - CRUD Operations]
+        I[Analytics Routes - Dashboard Data]
+        J[Settings Routes - User Preferences]
+        K[Decisions Routes - Audit Trail]
+        L[Chat Routes - AI Integration]
+        M[Rates Routes - Rate Management]
+    end
+    
+    subgraph "Service Layer"
+        N[Auth Service - User Management]
+        O[Invoice Service - Business Logic]
+        P[Analytics Service - Data Processing]
+        Q[Settings Service - Configuration]
+    end
+    
+    subgraph "Data Layer"
+        R[Prisma Client - Database ORM]
+        S[PostgreSQL - Primary Database]
+    end
+    
+    A --> D
+    A --> E
+    A --> F
+    A --> G
+    A --> H
+    A --> I
+    A --> J
+    A --> K
+    A --> L
+    A --> M
+    
+    G --> N
+    I --> P
+    J --> Q
+    
+    N --> R
+    O --> R
+    P --> R
+    Q --> R
+    
+    R --> S
 ```
 
 ### Application Architecture
@@ -95,9 +165,9 @@ graph LR
     end
     
     subgraph "API Layer"
-        E[Controllers]
-        F[Guards & Middleware]
-        G[DTOs & Validation]
+        E[Express Routes]
+        F[Auth Middleware]
+        G[Validation & Error Handling]
     end
     
     subgraph "Business Logic"
@@ -152,12 +222,13 @@ graph LR
 - **Deployment**: Vercel/AWS Amplify
 
 ### Backend
-- **Framework**: NestJS (Node.js)
+- **Framework**: Express.js (Node.js)
 - **Language**: TypeScript
 - **Database**: PostgreSQL with Prisma ORM
 - **Authentication**: JWT with Passport.js
 - **File Processing**: Multer for CSV uploads
-- **Validation**: Class-validator
+- **Validation**: express-validator
+- **Logging**: Pino with pino-http
 - **Deployment**: AWS ECS Fargate
 
 ### Infrastructure
@@ -167,6 +238,30 @@ graph LR
 - **Container Registry**: AWS ECR
 - **CI/CD**: GitHub Actions
 - **Secrets Management**: AWS Secrets Manager
+
+### Key Dependencies
+
+**Backend Dependencies:**
+- `express` - Web framework
+- `@prisma/client` - Database ORM
+- `passport` & `passport-jwt` - Authentication
+- `bcrypt` - Password hashing
+- `jsonwebtoken` - JWT token handling
+- `multer` - File upload handling
+- `express-validator` - Request validation
+- `pino` & `pino-http` - Structured logging
+- `fast-csv` - CSV parsing
+- `axios` - HTTP client for external services
+- `zod` - Schema validation
+
+**Frontend Dependencies:**
+- `next` - React framework
+- `@radix-ui/*` - UI component primitives
+- `tailwindcss` - CSS framework
+- `@tanstack/react-query` - Data fetching
+- `react-hook-form` - Form handling
+- `zod` - Schema validation
+- `lucide-react` - Icons
 
 ## 🚀 Quick Start
 
@@ -201,7 +296,7 @@ graph LR
    npx prisma migrate dev
    
    # Start development server
-   npm run start:dev
+   npm run dev
    ```
 
 3. **Frontend Setup**
@@ -236,12 +331,16 @@ invoice_discount_optimizer/
 │   │   └── lib/             # Utilities and types
 │   └── package.json
 ├── backend/
-│   └── api/                 # NestJS backend API
+│   └── api/                 # Express.js backend API
 │       ├── src/
-│       │   ├── routes/      # API route handlers
-│       │   ├── services/    # Business logic
-│       │   ├── middleware/  # Custom middleware
-│       │   └── utils/       # Utility functions
+│       │   ├── routes/      # Express route handlers
+│       │   ├── services/    # Business logic services
+│       │   ├── middleware/  # Custom middleware (auth, error, logging)
+│       │   ├── utils/       # Utility functions
+│       │   ├── types/       # TypeScript type definitions
+│       │   ├── config/      # Configuration management
+│       │   ├── app.ts       # Express app setup
+│       │   └── server.ts    # Server entry point
 │       ├── prisma/          # Database schema and migrations
 │       └── package.json
 ├── .github/
@@ -253,9 +352,10 @@ invoice_discount_optimizer/
 
 **Backend**
 ```bash
-npm run start:dev    # Start development server with hot reload
-npm run build        # Build for production
+npm run dev          # Start development server with hot reload (tsx watch)
+npm run build        # Build TypeScript to JavaScript
 npm run start        # Start production server
+npm run start:dev    # Alternative dev command
 npm run test         # Run unit tests
 npm run test:e2e     # Run end-to-end tests
 ```
@@ -286,9 +386,6 @@ NODE_ENV="development"
 
 # CORS
 CORS_ORIGINS="http://localhost:3000,https://your-frontend-domain.com"
-
-# FRED API (optional)
-FRED_API_KEY="your-fred-api-key"
 ```
 
 **Frontend (.env.local)**
@@ -356,9 +453,10 @@ aws ecs update-service --cluster your-cluster --service your-service --force-new
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/settings` | Get user settings |
-| PUT | `/api/settings` | Update settings |
-| PUT | `/api/settings/profile` | Update profile |
+| GET | `/settings` | Get user settings |
+| PUT | `/settings` | Update settings |
+| PUT | `/settings/profile` | Update profile |
+| POST | `/settings/change-password` | Change password |
 
 ## 💰 Financial Logic
 
@@ -459,6 +557,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ using Next.js, NestJS, PostgreSQL, and AWS**
+**Built with ❤️ using Next.js, Express.js, PostgreSQL, and AWS**
 
 *For more detailed technical documentation, see the inline code comments and API documentation.*

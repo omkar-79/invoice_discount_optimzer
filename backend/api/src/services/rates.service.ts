@@ -1,24 +1,28 @@
 import prisma from '../prisma.client';
-import { fetchFredSeriesLatest } from '../utils/fred.client';
 
 export class RatesService {
   async getToday() {
-    const apiKey = process.env.FRED_API_KEY!;
-    const series = process.env.FRED_SERIES_CODE || 'DGS3MO';
-    const latest = await fetchFredSeriesLatest(apiKey, series);
+    // Return a default rate since FRED API is not being used
+    // Users can set their own rates in the application
+    const defaultRate = {
+      asOf: new Date(),
+      name: 'DEFAULT',
+      annualRatePct: 5.0, // Default 5% annual rate
+      deltaBpsDay: 0, // No change
+    };
 
     const rate = await prisma.rate.upsert({
-      where: { asOf: new Date(latest.asOf) },
+      where: { asOf: new Date(defaultRate.asOf) },
       update: { 
-        annualRatePct: latest.annualRatePct, 
-        deltaBpsDay: latest.deltaBpsDay, 
-        name: series 
+        annualRatePct: defaultRate.annualRatePct, 
+        deltaBpsDay: defaultRate.deltaBpsDay, 
+        name: defaultRate.name 
       },
       create: {
-        asOf: new Date(latest.asOf),
-        name: series,
-        annualRatePct: latest.annualRatePct,
-        deltaBpsDay: latest.deltaBpsDay,
+        asOf: new Date(defaultRate.asOf),
+        name: defaultRate.name,
+        annualRatePct: defaultRate.annualRatePct,
+        deltaBpsDay: defaultRate.deltaBpsDay,
       },
     });
 
