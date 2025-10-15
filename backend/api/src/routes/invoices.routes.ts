@@ -3,6 +3,7 @@ import { body, query, param, validationResult } from 'express-validator';
 import { InvoicesService } from '../services/invoices.service';
 import { authenticateToken } from '../middleware/auth.middleware';
 import logger from '../middleware/logger.middleware';
+import { User } from '../types/user.types';
 
 const router = Router();
 const invoicesService = new InvoicesService();
@@ -33,15 +34,19 @@ router.post('/import', async (req, res, next) => {
       });
     }
 
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
     // Debug log: request metadata
     logger.info(
-      `Import request received: userId=${req.user?.id} filename=${req.file.originalname} size=${req.file.size} bytes mimetype=${req.file.mimetype}`
+      `Import request received: userId=${(req.user as User).id} filename=${req.file.originalname} size=${req.file.size} bytes mimetype=${req.file.mimetype}`
     );
 
-    const result = await invoicesService.importCsv(req.file.buffer, req.user.id);
+    const result = await invoicesService.importCsv(req.file.buffer, (req.user as User).id);
     
     logger.info(
-      `Import completed: userId=${req.user?.id} imported=${result.imported} skipped=${result.skipped}`
+      `Import completed: userId=${(req.user as User).id} imported=${result.imported} skipped=${result.skipped}`
     );
     
     res.json(result);
@@ -91,7 +96,10 @@ router.get('/', [
 // POST /api/invoices/update-recommendations
 router.post('/update-recommendations', async (req, res, next) => {
   try {
-    const result = await invoicesService.updateRecommendations(req.user.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const result = await invoicesService.updateRecommendations((req.user as User).id);
     res.json(result);
   } catch (error) {
     next(error);

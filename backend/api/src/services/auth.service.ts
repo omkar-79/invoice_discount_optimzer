@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import prisma from '../prisma.client';
 import { config } from '../config';
 import { AppError } from '../middleware/error.middleware';
+import { User } from '../types/user.types';
 
 export interface RegisterDto {
   email: string;
@@ -90,7 +91,7 @@ export class AuthService {
     };
   }
 
-  async validateUser(userId: string) {
+  async validateUser(userId: string): Promise<User | null> {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: {
