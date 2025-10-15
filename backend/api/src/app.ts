@@ -5,6 +5,7 @@ import 'express-async-errors';
 import { config } from './config';
 import { httpLogger } from './middleware/logger.middleware';
 import { errorHandler, notFound } from './middleware/error.middleware';
+import './types/user.types'; // Import to extend Express Request interface
 
 // Import routes
 import authRoutes from './routes/auth.routes';

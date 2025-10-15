@@ -4,6 +4,7 @@ import { Strategy as JwtStrategy, ExtractJwt } from 'passport-jwt';
 import { AuthService } from '../services/auth.service';
 import { AppError } from './error.middleware';
 import { config } from '../config';
+import '../types/user.types'; // Import to extend Express Request interface
 
 // Configure JWT strategy
 passport.use(new JwtStrategy({

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { body, validationResult } from 'express-validator';
 import { SettingsService, UserSettingsData } from '../services/settings.service';
 import { authenticateToken } from '../middleware/auth.middleware';
+import { User } from '../types/user.types';
 
 const router = Router();
 const settingsService = new SettingsService();
@@ -25,7 +26,10 @@ const validateRequest = (req: any, res: any, next: any) => {
 // GET /settings
 router.get('/', async (req, res, next) => {
   try {
-    const result = await settingsService.getUserSettings(req.user.id);
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const result = await settingsService.getUserSettings((req.user as User).id);
     res.json(result);
   } catch (error) {
     next(error);
